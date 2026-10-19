@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {parseRainText, summariseRain} = require('../lib/weather');
-const {parseRoute} = require('../lib/travel');
+const crypto = require('node:crypto');
+const {parseNsTrip, chooseTrip} = require('../lib/travel');
+const {signAuthToken} = require('../lib/apple');
 const {eventsFrom} = require('../lib/calendar');
 const {sized} = require('../lib/photos');
 const {authorised} = require('../lib/http');
@@ -20,37 +22,51 @@ test('rain text: dry the whole window', () => {
 	assert.equal(summariseRain(parseRainText('000|13:00\n000|13:05\n')).text, 'dry for the next 2 hours');
 });
 
-test('route: walks merged, ride details kept', () => {
-	const legs = parseRoute({
+test('NS trip: walks merged, ride details, delay and platform kept', () => {
+	const trip = {
+		status: 'NORMAL',
+		plannedDurationInMinutes: 38,
 		legs: [
+			{travelType: 'WALK', origin: {plannedDateTime: '2026-10-19T08:17:00+0200'}, destination: {plannedDateTime: '2026-10-19T08:21:00+0200'}},
+			{travelType: 'WALK', origin: {plannedDateTime: '2026-10-19T08:21:00+0200'}, destination: {plannedDateTime: '2026-10-19T08:23:00+0200'}},
 			{
-				steps: [
-					{travelMode: 'WALK', staticDuration: '120s'},
-					{travelMode: 'WALK', staticDuration: '250s'},
-					{
-						travelMode: 'TRANSIT',
-						staticDuration: '1500s',
-						transitDetails: {
-							stopDetails: {
-								departureStop: {name: 'Amsterdam Lelylaan'},
-								arrivalStop: {name: 'Haarlem'},
-								departureTime: '2026-10-19T06:23:00Z',
-								arrivalTime: '2026-10-19T06:38:00Z',
-							},
-							headsign: 'Haarlem',
-							transitLine: {nameShort: 'SPR', vehicle: {type: 'HEAVY_RAIL'}},
-						},
-					},
-					{travelMode: 'WALK', staticDuration: '540s'},
-				],
+				travelType: 'PUBLIC_TRANSIT',
+				name: 'NS Sprinter 4321',
+				direction: 'Haarlem',
+				product: {type: 'TRAIN', shortCategoryName: 'SPR', displayName: 'Sprinter'},
+				origin: {name: 'Amsterdam Lelylaan', plannedDateTime: '2026-10-19T08:23:00+0200', actualDateTime: '2026-10-19T08:25:00+0200', plannedTrack: '3', actualTrack: '4'},
+				destination: {name: 'Haarlem', plannedDateTime: '2026-10-19T08:38:00+0200'},
 			},
+			{travelType: 'WALK', origin: {plannedDateTime: '2026-10-19T08:38:00+0200'}, destination: {plannedDateTime: '2026-10-19T08:47:00+0200'}},
 		],
-	});
+	};
+	const legs = parseNsTrip(trip);
 	assert.equal(legs.length, 3);
-	assert.deepEqual(legs[0], {mode: 'walk', minutes: 6});
-	assert.equal(legs[1].vehicle, 'heavy_rail');
-	assert.equal(legs[1].from, 'Amsterdam Lelylaan');
-	assert.deepEqual(legs[2], {mode: 'walk', minutes: 9});
+	assert.equal(legs[0].minutes, 6);
+	assert.deepEqual(
+		{line: legs[1].line, vehicle: legs[1].vehicle, delay: legs[1].delayMinutes, platform: legs[1].platform, from: legs[1].from},
+		{line: 'Sprinter', vehicle: 'train', delay: 2, platform: '4', from: 'Amsterdam Lelylaan'}
+	);
+	assert.equal(legs[2].minutes, 9);
+});
+
+test('NS trip choice: the last one that still arrives in time', () => {
+	const t = (arr, status = 'NORMAL') => ({status, legs: [{destination: {plannedDateTime: arr}}]});
+	const trips = [t('2026-10-19T08:40:00+0200'), t('2026-10-19T08:50:00+0200'), t('2026-10-19T08:54:00+0200', 'CANCELLED'), t('2026-10-19T09:05:00+0200')];
+	const chosen = chooseTrip(trips, new Date('2026-10-19T08:55:00+0200'));
+	assert.equal(chosen, trips[1]);
+});
+
+test('Apple Maps auth token is a valid ES256 JWT', () => {
+	const {privateKey, publicKey} = crypto.generateKeyPairSync('ec', {namedCurve: 'P-256'});
+	const env = {APPLE_MAPS_TEAM_ID: 'TEAM123456', APPLE_MAPS_KEY_ID: 'KEY1234567', APPLE_MAPS_PRIVATE_KEY: privateKey.export({type: 'pkcs8', format: 'pem'}).replace(/\n/g, '\\n')};
+	const jwt = signAuthToken(env, 1000);
+	const [h, p, sig] = jwt.split('.');
+	const dec = (x) => JSON.parse(Buffer.from(x.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+	assert.deepEqual(dec(h), {alg: 'ES256', kid: 'KEY1234567', typ: 'JWT'});
+	assert.deepEqual(dec(p), {iss: 'TEAM123456', iat: 1000, exp: 2800, scope: 'server_api'});
+	const ok = crypto.verify('sha256', Buffer.from(`${h}.${p}`), {key: publicKey, dsaEncoding: 'ieee-p1363'}, Buffer.from(sig.replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
+	assert.equal(ok, true);
 });
 
 test('ics: repeating event expanded, cancelled and online handled', () => {
