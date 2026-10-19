@@ -73,6 +73,7 @@ class LauncherActivity : Activity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        bridge.refreshApps()
         web.requestFocus()
         web.evaluateJavascript("window.onLauncherResume && window.onLauncherResume()", null)
     }

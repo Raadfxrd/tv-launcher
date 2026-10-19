@@ -31,10 +31,15 @@ class LauncherBridge(private val activity: Activity) {
     // Banners are turned into images once, off the main thread; the page asks
     // again until they're ready.
     @Volatile private var appsJson: String? = null
+    @Volatile private var builtAt = 0L
 
     init { refreshApps() }
 
+    /* Installs don't always announce themselves (the Play Store on the A1
+       doesn't reliably), so the list is also rebuilt on every return home and
+       whenever the page asks and the list is older than 15 seconds. */
     fun refreshApps() {
+        builtAt = System.currentTimeMillis()
         worker.execute { appsJson = buildApps() }
     }
 
@@ -69,7 +74,10 @@ class LauncherBridge(private val activity: Activity) {
     }
 
     @JavascriptInterface
-    fun apps(): String = appsJson ?: ""
+    fun apps(): String {
+        if (System.currentTimeMillis() - builtAt > 15_000) refreshApps()
+        return appsJson ?: ""
+    }
 
     @JavascriptInterface
     fun launch(pkg: String): Boolean {
