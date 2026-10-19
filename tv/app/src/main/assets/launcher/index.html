@@ -21,9 +21,9 @@
     /* Glass, as in home-dashboard: a faint fill over whatever is behind,
        blurred and saturated, a hairline edge, and light catching the top.
        A touch darker than the dashboard's, because this sits on colour. */
-    --glass-fill: rgba(26, 24, 38, 0.32);
-    --glass-edge: rgba(255, 255, 255, 0.10);
-    --glass-blur: blur(28px) saturate(170%);
+    --glass-fill: rgba(22, 20, 36, 0.14);
+    --glass-edge: rgba(255, 255, 255, 0.16);
+    --glass-blur: blur(14px) saturate(160%);
     /* Shadows the way light falls from above: a tight contact shadow plus a
        wide soft one that sits lower and fades out, never one dark blob. */
     --lift-1: 0 1px 2px rgba(10, 6, 30, 0.16), 0 6px 16px -6px rgba(10, 6, 30, 0.22);
@@ -57,7 +57,7 @@
            background:
              radial-gradient(60% 50% at 12% 22%, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0) 100%),
              linear-gradient(90deg, rgba(10,8,24,0.55) 0%, rgba(10,8,24,0.18) 40%, rgba(10,8,24,0) 62%),
-             linear-gradient(0deg, rgba(10,8,24,0.82) 0%, rgba(10,8,24,0.4) 28%, rgba(10,8,24,0) 52%),
+             linear-gradient(0deg, rgba(10,8,24,0.42) 0%, rgba(10,8,24,0.16) 22%, rgba(10,8,24,0) 42%),
              linear-gradient(180deg, rgba(10,8,24,0.28) 0%, rgba(10,8,24,0) 20%); }
 
   .glass { background: var(--glass-fill);
@@ -80,10 +80,10 @@
   /* ---------- the dock: time on the left, what's next on the right ---------- */
   .dock { position: absolute; left: 112px; right: 112px; bottom: 60px; display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
   .when { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-  .clock { font-family: 'Iosevka', monospace; font-size: 136px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.9; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
+  .clock { font-family: 'Iosevka', monospace; font-size: 136px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.9; text-shadow: 0 2px 30px rgba(0,0,0,0.35); }
   .clock span { display: inline-block; }
   .date { font-size: 28px; padding: 14px 0 0 4px; text-shadow: 0 1px 16px rgba(0,0,0,0.3); }
-  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); padding: 2px 0 0 4px; min-height: 48px; }
+  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); padding: 2px 0 0 4px; min-height: 48px; }
 
   /* Settings: a gear at the end of the date line, one press down from the apps. */
   .gear { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 24px; margin-left: 8px; color: var(--text); flex-shrink: 0;
@@ -92,7 +92,7 @@
   .row.active .gear.focused.pressed { transform: scale(1.0); }
 
   .now { display: flex; gap: 24px; align-items: flex-end; justify-content: flex-end; min-width: 0; }
-  .card { width: 520px; flex-shrink: 1; min-width: 0; border-radius: 26px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; animation: rise 0.7s var(--settle) both; }
+  .card { text-shadow: 0 1px 10px rgba(0,0,0,0.35); width: 520px; flex-shrink: 1; min-width: 0; border-radius: 26px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; animation: rise 0.7s var(--settle) both; }
   .card.next { width: 620px; }
   .card + .card { animation-delay: 0.06s; }
   @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
