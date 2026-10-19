@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+<meta name="viewport" content="width=1920, height=1080">
 <title>Home</title>
 <style>
   @font-face { font-family: 'Iosevka'; font-weight: 300; src: url('fonts/iosevka-latin-300-normal.woff2') format('woff2'); }
@@ -154,6 +154,21 @@
     .card { animation: none; } .tile::after { display: none; }
   }
 </style>
+<script>
+  /* The page is drawn at 1920×1080. Android TV reports its screen in its own
+     units (often 960×540 on a 4K set), so scale the whole page to whatever
+     the screen turns out to be, keeping the proportions. */
+  (function () {
+    function fit() {
+      var root = document.documentElement;
+      root.style.zoom = '';
+      var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      if (s > 0 && Math.abs(s - 1) > 0.01) root.style.zoom = s;
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  })();
+</script>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
