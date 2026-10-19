@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2B3A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TV API">
 <meta name="robots" content="noindex">
 <title>tv-launcher API</title>
 <style>
@@ -34,7 +38,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { overflow: hidden; color: var(--text); background: #6C6589; font-family: 'Iosevka Aile', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { overflow: hidden; -webkit-tap-highlight-color: transparent; color: var(--text); background: #6C6589; font-family: 'Iosevka Aile', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   button, input, textarea { font: inherit; color: inherit; }
   a { color: inherit; }
 
@@ -77,7 +81,7 @@
 
   /* ---------- the row ---------- */
   .row { position: absolute; left: var(--side); right: var(--side); top: 41vh; }
-  .viewport { margin: -48px calc(-1 * var(--side)); padding: 48px var(--side); overflow: hidden; }
+  .viewport { margin: -72px calc(-1 * var(--side)); padding: 72px var(--side); overflow: hidden; }
   .track { display: flex; gap: clamp(14px, 1.5vw, 28px); transition: transform 0.5s var(--settle); }
   .tile { position: relative; flex-shrink: 0; width: clamp(190px, 16vw, 304px); aspect-ratio: 16 / 9; border-radius: clamp(16px, 1.3vw, 24px); overflow: hidden;
           border: 0; padding: clamp(14px, 1.15vw, 22px); text-align: left; cursor: pointer;
@@ -118,7 +122,9 @@
   .tools { display: flex; gap: 10px; padding: 8px 0 0 4px; }
   .round { width: 46px; height: 46px; border-radius: 23px; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--text);
            transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
-  .round:hover, .round:focus-visible { background: #fff; color: #1a1630; transform: scale(1.1); box-shadow: var(--lift-2); outline: none; }
+  .round:focus-visible { background: #fff; color: #1a1630; transform: scale(1.1); box-shadow: var(--lift-2); outline: none; }
+  @media (hover: hover) { .round:hover { background: #fff; color: #1a1630; transform: scale(1.1); box-shadow: var(--lift-2); } }
+  .round:active { background: #fff; color: #1a1630; }
   .round:active { transform: scale(1.0); }
   .round svg { width: 21px; height: 21px; }
 
@@ -154,6 +160,8 @@
            box-shadow: inset 0 0 0 1px var(--glass-edge); font-family: var(--mono); font-size: clamp(13px, 1vw, 17px); }
   .input:focus { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); }
   textarea.input { min-height: 15vh; resize: vertical; line-height: 1.5; }
+  .token-row { display: flex; gap: 10px; }
+  .token-row .input { flex: 1; min-width: 0; }
   .send { align-self: flex-start; border: 0; border-radius: 14px; padding: 10px 20px; cursor: pointer; background: #fff; color: #1a1630; font-weight: 500;
           box-shadow: var(--lift-2); transition: transform 0.3s var(--settle); }
   .send:active { transform: scale(0.96); }
@@ -185,19 +193,41 @@
   .toast.on { opacity: 1; transform: translate(-50%, 0); }
 
   /* ---------- small screens: the same pieces, one under the other ---------- */
+  /* ---------- phone: one column you scroll, the row you swipe ---------- */
   @media (max-width: 860px), (max-height: 620px) {
-    body { overflow: auto; }
-    .page { height: auto; min-height: 100%; padding: 9vh 0 40px; }
+    :root { --side: 20px; }
+    body { overflow-y: auto; overflow-x: hidden; }
+    .page { height: auto; min-height: 100%;
+            padding: calc(env(safe-area-inset-top) + 7vh) 0 calc(env(safe-area-inset-bottom) + 28px); }
     .about, .row, .dock { position: relative; left: auto; right: auto; top: auto; bottom: auto; }
-    .about { margin: 0 var(--side); width: auto; }
-    .row { margin: 6vh var(--side) 0; height: auto; padding-bottom: 46px; }
-    .viewport { overflow-x: auto; scrollbar-width: none; }
+    .about { margin: 0 var(--side); width: auto; gap: 8px; }
+    .about-title { font-size: clamp(44px, 13vw, 64px); }
+    .about-desc { -webkit-line-clamp: 3; }
+    .row { margin: 28px 0 0; }
+    .viewport { margin: -40px 0 -50px; padding: 58px var(--side) 72px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--side);
+                -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .viewport::-webkit-scrollbar { display: none; }
-    .tile { width: 200px; }
-    .dock { margin: 2vh var(--side) 0; flex-direction: column; align-items: stretch; gap: 22px; }
-    .now { flex-direction: column; align-items: stretch; }
-    .card, .card.wide { width: auto; max-height: none; }
-    .sheet { left: 12px; right: 12px; width: auto; top: 8vh; bottom: 12px; }
+    .track { transform: none !important; transition: none; }
+    .track::after { content: ''; flex: 0 0 1px; }                 /* room after the last tile */
+    .tile { width: min(62vw, 240px); scroll-snap-align: start; }
+    .caption { display: none; }
+    .dock { margin: 6px var(--side) 0; flex-direction: column; align-items: stretch; gap: 18px; }
+    .when { flex-direction: row; flex-wrap: wrap; align-items: flex-end; column-gap: 16px; row-gap: 12px; }
+    .big { font-size: 64px; }
+    .line { padding: 0 0 8px; font-size: 17px; }
+    .tools { width: 100%; padding: 0; gap: 12px; }
+    .round { width: 48px; height: 48px; border-radius: 24px; }
+    .now { flex-direction: column; align-items: stretch; gap: 16px; }
+    .card, .card.wide { width: auto; max-height: none; padding: 20px; border-radius: 24px; }
+    .input { font-size: 16px; }                                    /* 16px: iOS doesn't zoom in on focus */
+    .json.inline { overflow-x: auto; }
+    .sheet { left: 0; right: 0; width: auto; top: calc(env(safe-area-inset-top) + 8vh); bottom: 0; border-radius: 26px 26px 0 0;
+             transform: translateY(40px); }
+    .sheet.open { transform: none; }
+    .sheet-head { padding: 18px 20px 10px; }
+    .sheet-head .round { width: 44px; height: 44px; }
+    .json { padding: 4px 20px calc(env(safe-area-inset-bottom) + 24px); font-size: 13px; }
+    .toast { top: calc(env(safe-area-inset-top) + 12px); }
   }
   @media (prefers-reduced-motion: reduce) {
     .pic, .track, .tile, .about, .caption, .sheet, .round { transition-duration: 0.01s !important; }
@@ -268,6 +298,12 @@
   }
 
   var tokens = {feed: stored('tvl.token'), inbound: stored('tvl.inbound')};
+  (function () {
+    var q = new URLSearchParams(location.search), t = q.get('token');
+    if (!t) return;
+    tokens.feed = t; store('tvl.token', t);
+    history.replaceState(null, '', location.pathname + location.hash);
+  })();
   var endpoints = [], results = {}, focus = 0, bodies = {};
 
   /* ================= the row ================= */
@@ -317,8 +353,16 @@
 
   /* Move the row only as far as it takes to keep the focused tile in view. */
   var offset = 0;
+  var phone = window.matchMedia('(max-width: 860px), (max-height: 620px)');
   function slide(instant) {
     var t = endpoints[focus].tile, track = $('track');
+    if (phone.matches) {
+      var vp = track.parentNode, pad = parseFloat(getComputedStyle(vp).paddingLeft) || 0;
+      var target = t.offsetLeft - pad;
+      if (t.offsetLeft < vp.scrollLeft + pad || t.offsetLeft + t.offsetWidth > vp.scrollLeft + vp.clientWidth - pad)
+        vp.scrollTo({left: target, behavior: instant ? 'auto' : 'smooth'});
+      return;
+    }
     var view = track.parentNode.clientWidth - 2 * parseFloat(getComputedStyle(track.parentNode).paddingLeft);
     var left = t.offsetLeft, right = left + t.offsetWidth;
     if (right + offset > view - 40) offset = view - 40 - right;
@@ -488,23 +532,31 @@
     inp.autocomplete = 'off';
     inp.spellcheck = false;
     inp.value = tokenFor(ep);
-    inp.addEventListener('keydown', function (e) {
-      e.stopPropagation();
-      if (e.key !== 'Enter') return;
-      var v = inp.value.trim();
-      if (ep.inbound) { tokens.inbound = v; store('tvl.inbound', v); } else { tokens.feed = v; store('tvl.token', v); }
-      results = ep.inbound ? results : {};
-      if (ep.inbound) dock(ep); else { dock(ep); checkAll(); }
-    });
-    return inp;
+    inp.setAttribute('autocapitalize', 'off');
+    inp.setAttribute('autocorrect', 'off');
+    inp.setAttribute('enterkeyhint', 'done');
+    var save = function () { saveToken(ep, inp.value.trim()); };
+    inp.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') save(); });
+    var row = el('div', 'token-row');
+    row.appendChild(inp);
+    var b = el('button', 'send', 'Save');
+    b.type = 'button';
+    b.addEventListener('click', save);
+    row.appendChild(b);
+    return row;
+  }
+  function saveToken(ep, v) {
+    if (ep.inbound) { tokens.inbound = v; store('tvl.inbound', v); } else { tokens.feed = v; store('tvl.token', v); results = {}; }
+    dock(ep);
+    if (!ep.inbound) checkAll();
   }
   function tokenCard(ep) {
     var c = card(ep.inbound ? 'Inbound token' : 'Token');
     c.appendChild(el('div', 'title', ep.inbound ? 'The webhook has its own token' : 'Paste your token'));
-    c.appendChild(el('div', 'sub', (ep.inbound ? 'INBOUND_TOKEN' : 'FEED_TOKEN') + ' from Vercel → Settings → Environment Variables, then Enter. It stays in this browser.'));
+    c.appendChild(el('div', 'sub', (ep.inbound ? 'INBOUND_TOKEN' : 'FEED_TOKEN') + ' from Vercel → Settings → Environment Variables, then Save. It stays in this browser.'));
     var f = tokenField(ep);
     c.appendChild(f);
-    setTimeout(function () { if (document.activeElement === document.body) f.focus(); }, 50);
+    if (!phone.matches) setTimeout(function () { if (document.activeElement === document.body) f.querySelector('input').focus(); }, 50);
     return c;
   }
   function askToken(ep) { dock(ep); var i = $('now').querySelector('input'); if (i) i.focus(); }
@@ -579,6 +631,7 @@
     else if (e.key === 'Escape') closeSheet();
   });
   window.addEventListener('resize', function () { if (endpoints.length) slide(true); });
+  if (phone.addEventListener) phone.addEventListener('change', function () { $('track').style.transform = ''; offset = 0; if (endpoints.length) slide(true); });
 
   load();
 })();

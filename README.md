@@ -29,7 +29,11 @@ Open `https://<your-vercel-domain>/docs/` (the bare domain redirects there).
 It looks like the launcher: the forest full screen, one glass tile per
 endpoint, and the request and response in glass cards along the bottom. Paste `FEED_TOKEN` once and every
 tile shows a dot for whether it's up; arrows (or a click) move along the row,
-Enter runs the call again, J opens the raw JSON. The spec is
+Enter runs the call again, J opens the raw JSON. On a phone it's one column you scroll, with
+the row of tiles you swipe; add it to your home screen and it opens full
+screen. To get the token onto your phone without typing it, open
+`/docs/?token=<FEED_TOKEN>` once: it's saved in that browser and wiped from
+the address. The spec is
 `/openapi.json`, so Swagger, Postman or Insomnia can import it too.
 
 ## Setup
