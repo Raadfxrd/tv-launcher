@@ -15,123 +15,159 @@
   :root {
     --text: #FFFFFF;
     --muted: rgba(255, 255, 255, 0.72);   /* vibrancy: white at strength, not flat grey, over colour */
-    --line: rgba(255, 255, 255, 0.12);
-    /* Glass, as in home-dashboard: a faint fill over whatever is behind,
-       blurred and saturated, with a hairline edge and light catching the top.
-       A touch darker than the dashboard's, because this sits on colour. */
-    --glass-fill: rgba(28, 26, 40, 0.30);
-    --glass-edge: rgba(255, 255, 255, 0.11);
-    --glass-blur: blur(28px) saturate(170%);
+    --faint: rgba(255, 255, 255, 0.5);
     --accent: #A9CBFF;
-    --warn: #FFB547;
-    --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped feel: no overshoot */
+    --warn: #FFC066;
+    /* Glass, as in home-dashboard: a faint fill over whatever is behind,
+       blurred and saturated, a hairline edge, and light catching the top.
+       A touch darker than the dashboard's, because this sits on colour. */
+    --glass-fill: rgba(26, 24, 38, 0.32);
+    --glass-edge: rgba(255, 255, 255, 0.10);
+    --glass-blur: blur(28px) saturate(170%);
+    /* Shadows the way light falls from above: a tight contact shadow plus a
+       wide soft one that sits lower and fades out, never one dark blob. */
+    --lift-1: 0 1px 2px rgba(10, 6, 30, 0.16), 0 6px 16px -6px rgba(10, 6, 30, 0.22);
+    --lift-2: 0 2px 4px rgba(10, 6, 30, 0.18), 0 22px 44px -14px rgba(10, 6, 30, 0.5);
+    --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped: arrives and settles, never overshoots */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #6E6488; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #6C6589; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
   .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
   /* ---------- background ----------
-     Soft light pooled in the corners, like the Home app: rose top left,
-     amber top right, blue on the left, violet bottom right. It holds still, so
-     the frosted cards blur it once instead of every frame (the A1's GPU
-     thanks us), and a whisper of grain keeps the gradient from banding. */
-  .bg { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
+     Light pooled in the corners like the Home app, plus a glow behind the app
+     row that takes on the colour of the app you're on. The base holds still,
+     so the frosted cards blur it once; only the glow crossfades, briefly. */
+  .bg, .glow { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; }
+  .bg { z-index: 0;
         background:
           radial-gradient(55% 60% at 10% 4%, #C66C8D 0%, rgba(198,108,141,0) 72%),
-          radial-gradient(50% 55% at 92% 16%, #C98A52 0%, rgba(201,138,82,0) 70%),
-          radial-gradient(55% 60% at 4% 66%, #4E7DB8 0%, rgba(78,125,184,0) 72%),
-          radial-gradient(60% 60% at 90% 84%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
-          radial-gradient(70% 65% at 48% 104%, #5B62AA 0%, rgba(91,98,170,0) 75%),
+          radial-gradient(50% 55% at 92% 12%, #C98A52 0%, rgba(201,138,82,0) 70%),
+          radial-gradient(55% 60% at 2% 70%, #4E7DB8 0%, rgba(78,125,184,0) 72%),
+          radial-gradient(60% 60% at 92% 88%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
+          radial-gradient(70% 65% at 48% 108%, #5B62AA 0%, rgba(91,98,170,0) 75%),
           #6C6589; }
-  .bg::after { content: ''; position: absolute; inset: 0;
-        background:
-          linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.28) 100%),
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
+  .glow { z-index: 0; opacity: 0; transition: opacity 0.9s ease; will-change: opacity; }
+  .glow.on { opacity: 1; }
+  .grain { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
+           background:
+             linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.22) 100%),
+             url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
 
-  .glass { background: var(--glass-fill); box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.08);
+  .glass { background: var(--glass-fill);
+           box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.10), var(--lift-1);
            -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
-  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(28, 26, 40, 0.55); }
+  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(26, 24, 38, 0.55); }
 
-  .page { position: relative; z-index: 1; padding: 64px 112px 56px; height: 1080px; display: flex; flex-direction: column; gap: 44px; }
+  .page { position: relative; z-index: 1; padding: 72px 112px 0; height: 1080px; }
 
-  /* ---------- header ---------- */
-  header { display: flex; justify-content: space-between; align-items: flex-end; }
-  .when { display: flex; align-items: baseline; gap: 28px; }
-  .clock { font-family: 'Iosevka', monospace; font-size: 76px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; }
-  .date { font-size: 26px; color: var(--muted); }
-  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); }
+  /* ---------- top half: time on the left, what's next on the right ---------- */
+  .top { display: flex; justify-content: space-between; align-items: flex-start; height: 430px; }
+  .when { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+  .greeting { font-size: 30px; color: var(--muted); letter-spacing: -0.005em; }
+  .clock { font-family: 'Iosevka', monospace; font-size: 188px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.92; text-shadow: 0 2px 30px rgba(20, 10, 50, 0.18); }
+  .clock span { display: inline-block; }
+  .date { font-size: 32px; color: var(--muted); padding-left: 6px; }
+  .status { display: flex; align-items: center; gap: 12px; font-size: 26px; color: var(--muted); padding: 18px 0 0 6px; }
 
-  /* ---------- rows of tiles ---------- */
-  .row { display: flex; flex-direction: column; gap: 18px; }
-  .row-label { font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
-  .viewport { margin: -24px -112px; padding: 24px 112px; overflow: hidden; }   /* room for the focus ring and scale */
-  .track { display: flex; gap: 24px; transition: transform 0.45s var(--settle); will-change: transform; }
-
-  .tile { position: relative; flex-shrink: 0; width: 256px; height: 144px; border-radius: 22px; background: center / cover no-repeat;
-          transition: transform 0.32s var(--settle), box-shadow 0.32s var(--settle), opacity 0.32s ease; opacity: 0.8; }
-  .tile.banner { box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-  .tile.small { width: 208px; height: 117px; border-radius: 18px; }
-  .tile .name { position: absolute; left: 20px; bottom: 16px; right: 20px; font-size: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile.small .name { font-size: 20px; left: 16px; bottom: 12px; }
-  .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
-  .tile.text .name { position: static; font-size: 28px; font-weight: 500; }
-  .tile .port { font-family: 'Iosevka', monospace; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
-  .tile.banner .name { display: none; }
-  /* Focus: the tile lifts toward you; the ring is light catching its edge. */
-  .row.active .tile.focused { opacity: 1; transform: scale(1.1); box-shadow: 0 0 0 3px var(--text), 0 24px 60px rgba(0,0,0,.6); }
-  .row:not(.active) .tile { opacity: 0.62; }
-  /* Pressing OK answers immediately, before anything opens. */
-  .row.active .tile.focused.pressed { transform: scale(1.04); transition-duration: 0.09s; }
-  /* The name rides along under the focused tile. */
-  .caption { height: 28px; font-size: 22px; color: var(--text); padding-left: 2px; opacity: 0; white-space: nowrap; transition: opacity 0.25s ease, transform 0.45s var(--settle); }
-  .row.active .caption { opacity: 1; }
-
-  /* ---------- now: next up, music, parcels ---------- */
-  .now { display: flex; gap: 24px; min-height: 0; transition: opacity 0.4s ease; }
-  .now:empty { display: none; }
-  .card { border-radius: 26px; padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation: rise 0.6s var(--settle); }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  .card .head { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); }
-  .card .title { font-size: 30px; font-weight: 500; letter-spacing: -0.01em; }
+  .now { width: 720px; display: flex; flex-direction: column; gap: 20px; }
+  .card { border-radius: 28px; padding: 26px 30px; display: flex; flex-direction: column; gap: 12px; animation: rise 0.7s var(--settle) both; }
+  .card + .card { animation-delay: 0.06s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
+  .card .head { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); letter-spacing: 0.01em; }
+  .card .title { font-size: 32px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.15; }
   .card .sub { font-size: 22px; color: var(--muted); }
-  .card .leave { font-size: 26px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  .card .leave { font-size: 26px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; padding-top: 4px; }
   .card .leave b { font-family: 'Iosevka', monospace; font-weight: 500; color: var(--accent); }
   .card .leave.late b, .warn { color: var(--warn); }
-  .card .art { width: 72px; height: 72px; border-radius: 12px; background: rgba(0,0,0,0.25) center / cover no-repeat; flex-shrink: 0; }
+  .card .art { width: 76px; height: 76px; border-radius: 14px; background: rgba(0,0,0,0.25) center / cover no-repeat; flex-shrink: 0; box-shadow: var(--lift-1); }
   .card .media { display: flex; gap: 20px; align-items: center; }
-  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.22); }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); }
   .steps i.done { background: var(--accent); }
 
-  /* ---------- bottom ---------- */
-  .chips { margin-top: auto; }
+  /* ---------- rows of tiles ---------- */
+  .row { position: relative; display: flow-root; }   /* flow-root: the track's negative margins must not leak out */
+  .row-label { font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); padding: 0 0 14px 2px; transition: color 0.3s ease; }
+  .row.active .row-label { color: var(--muted); }
+  /* Generous room around the track, so a focused tile's scale and shadow are
+     never clipped into a hard edge. */
+  .viewport { margin: -56px -112px; padding: 56px 112px; overflow: hidden; }
+  .track { display: flex; gap: 28px; transition: transform 0.5s var(--settle); will-change: transform; }
+
+  .tile { position: relative; flex-shrink: 0; width: 304px; height: 171px; border-radius: 24px; overflow: hidden;
+          background: rgba(255,255,255,0.06) center / cover no-repeat;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), var(--lift-1);
+          transform: translateZ(0);
+          transition: transform 0.4s var(--settle), box-shadow 0.4s var(--settle), opacity 0.3s ease; }
+  .tile.small { width: 224px; height: 126px; border-radius: 20px; }
+  .tile .name { position: absolute; left: 22px; bottom: 18px; right: 22px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile.small .name { font-size: 20px; left: 18px; bottom: 14px; }
+  .tile.banner .name { display: none; }
+  .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 22px; }
+  .tile.text .name { position: static; font-size: 30px; font-weight: 500; letter-spacing: -0.01em; }
+  .tile .port { font-family: 'Iosevka', monospace; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+  /* A sheen that glides across the tile as it takes focus, like light moving
+     over glass as it tilts toward you. */
+  .tile::after { content: ''; position: absolute; inset: -40% -60%; pointer-events: none;
+                 background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 60%);
+                 transform: translateX(-60%); opacity: 0; }
+  .row:not(.active) .tile { opacity: 0.66; }
+  .row.active .tile.focused { transform: scale(1.09) translateZ(0);
+                              box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 3px rgba(255,255,255,0.95), var(--lift-2); }
+  .row.active .tile.focused::after { animation: sheen 1.1s var(--settle) 0.05s both; }
+  @keyframes sheen { from { transform: translateX(-60%); opacity: 1; } to { transform: translateX(60%); opacity: 0; } }
+  /* Pressing OK answers immediately, before anything opens. */
+  .row.active .tile.focused.pressed { transform: scale(1.03) translateZ(0); transition-duration: 0.09s; }
+
+  .caption { position: absolute; left: 0; height: 30px; font-size: 22px; color: var(--text); white-space: nowrap; opacity: 0;
+             text-shadow: 0 1px 12px rgba(20, 10, 50, 0.3); transition: opacity 0.25s ease, transform 0.5s var(--settle); }
+  .row.active .caption { opacity: 1; }
+
+  #row-apps { margin-top: 24px; height: 230px; }
+  #row-apps .caption { top: 186px; }
+  #row-all { height: 216px; }
+  #row-all .caption { top: 176px; }
+
+  .chips { position: absolute; left: 112px; bottom: 52px; }
+  .chips .viewport { margin: -20px -112px; padding: 20px 112px; }
   .chips .track { gap: 14px; }
-  .chip { flex-shrink: 0; font-size: 22px; color: var(--text); padding: 14px 26px; border-radius: 30px; transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
-  .row.active .chip.focused { background: var(--text); color: #000; transform: scale(1.06); }
+  .chip { flex-shrink: 0; font-size: 22px; padding: 14px 26px; border-radius: 30px; transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
+  .row.active .chip.focused { background: #fff; color: #1a1630; transform: scale(1.06); }
   .row.active .chip.focused.pressed { transform: scale(1.0); }
 
-  @media (prefers-reduced-motion: reduce) { .track, .tile, .chip { transition-duration: 0.01s !important; } .card { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .track, .tile, .chip, .caption, .glow { transition-duration: 0.01s !important; }
+    .card { animation: none; } .tile::after { display: none; }
+  }
 </style>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
-<div class="page">
-  <header>
-    <div class="when"><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
-    <div class="status" id="status"></div>
-  </header>
+<div class="glow" id="glowA" aria-hidden="true"></div>
+<div class="glow" id="glowB" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
 
-  <section class="row" id="row-apps" data-size="large">
-    <div class="viewport"><div class="track"></div></div>
-    <div class="caption" id="caption-apps"></div>
+<div class="page">
+  <section class="top">
+    <div class="when">
+      <div class="greeting" id="greeting"></div>
+      <div class="clock" id="clock" aria-label="Time"></div>
+      <div class="date" id="date"></div>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="now" id="now" aria-label="Now"></div>
   </section>
 
-  <section class="now" id="now" aria-label="Now"></section>
+  <section class="row" id="row-apps">
+    <div class="viewport"><div class="track"></div></div>
+    <div class="caption"></div>
+  </section>
 
-  <section class="row" id="row-all" data-size="small">
+  <section class="row" id="row-all">
     <div class="row-label">All apps</div>
     <div class="viewport"><div class="track"></div></div>
-    <div class="caption" id="caption-all"></div>
+    <div class="caption"></div>
   </section>
 
   <section class="row chips" id="row-chips">
@@ -145,9 +181,10 @@
 
   /* ================= what goes on the home screen =================
      The first row, in this order. Apps are found by package first, then by
-     the name the TV shows; ones that aren't installed are simply left out. */
+     the name the TV shows; ones that aren't installed are simply left out.
+     `color` is the glow for tiles without a banner to take a colour from. */
   var PINNED = [
-    {hdmi: 3, label: 'Apple TV'},                 // the Apple TV, on HDMI 3
+    {hdmi: 3, label: 'Apple TV', color: [150, 150, 170]},     // the Apple TV, on HDMI 3
     {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
     {label: 'Tidal', pkgs: ['com.aspiro.tidal'], names: ['tidal']},
     {label: 'Crunchyroll', pkgs: ['com.crunchyroll.crunchyroid'], names: ['crunchyroll']},
@@ -161,6 +198,7 @@
   var API = (params.get('api') || '').replace(/\/$/, '');
   var TOKEN = params.get('token') || '';
   var bridge = window.TVBridge || null;
+  var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (params.get('lite') === '1') document.documentElement.classList.add('lite');
 
   var $ = function (id) { return document.getElementById(id); };
@@ -169,43 +207,108 @@
   function hhmm(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
 
   /* ================= clock ================= */
+  var digits = [];
   function tick() {
     var now = new Date();
-    var t = hhmm(now);
-    if ($('clock').textContent !== t) $('clock').textContent = t;
+    var text = hhmm(now);
+    var clock = $('clock');
+    if (!digits.length) {
+      for (var i = 0; i < text.length; i++) { var s = el('span', null, text[i]); clock.appendChild(s); digits.push(s); }
+    } else {
+      for (var j = 0; j < text.length; j++) {
+        if (digits[j].textContent === text[j]) continue;
+        digits[j].textContent = text[j];
+        if (!REDUCED && digits[j].animate) digits[j].animate([{opacity: 0, transform: 'translateY(0.1em)'}, {opacity: 1, transform: 'none'}], {duration: 700, easing: 'cubic-bezier(0.22, 1, 0.36, 1)'});
+      }
+    }
+    var h = now.getHours();
+    $('greeting').textContent = h < 6 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
     $('date').textContent = now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
+  }
+
+  /* ================= the glow behind the app row =================
+     Each app's colour is taken from its own banner: the average of its
+     vivid pixels, lifted a little so it glows rather than muddies. Two layers
+     crossfade so the colour never jumps. */
+  var colorCache = {};
+  function bannerColor(src, done) {
+    if (colorCache[src]) return done(colorCache[src]);
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var c = document.createElement('canvas'); c.width = 24; c.height = 14;
+        var g = c.getContext('2d'); g.drawImage(img, 0, 0, 24, 14);
+        var d = g.getImageData(0, 0, 24, 14).data, r = 0, gr = 0, b = 0, w = 0;
+        for (var i = 0; i < d.length; i += 4) {
+          var max = Math.max(d[i], d[i + 1], d[i + 2]), min = Math.min(d[i], d[i + 1], d[i + 2]);
+          var weight = (max - min) / 255 + 0.08;            // vivid pixels count more than grey ones
+          r += d[i] * weight; gr += d[i + 1] * weight; b += d[i + 2] * weight; w += weight;
+        }
+        colorCache[src] = lift([r / w, gr / w, b / w]);
+      } catch (e) { colorCache[src] = null; }
+      done(colorCache[src]);
+    };
+    img.onerror = function () { done(null); };
+    img.src = src;
+  }
+  function lift(rgb) {   // brighter and a bit more saturated, so it reads as light
+    var avg = (rgb[0] + rgb[1] + rgb[2]) / 3;
+    return rgb.map(function (v) { return Math.round(Math.min(255, (v + (v - avg) * 0.6) * 1.15 + 30)); });
+  }
+  var glowFront = $('glowA'), glowBack = $('glowB'), glowKey = '', glowTimer = null;
+  function glowTo(rgb) {
+    var key = rgb ? rgb.join(',') : '';
+    if (key === glowKey) return;
+    glowKey = key;
+    if (!rgb) { glowFront.classList.remove('on'); return; }
+    glowBack.style.background =
+      'radial-gradient(60% 55% at 30% 68%, rgba(' + key + ',0.55) 0%, rgba(' + key + ',0) 70%),' +
+      'radial-gradient(40% 40% at 78% 72%, rgba(' + key + ',0.28) 0%, rgba(' + key + ',0) 70%)';
+    glowBack.classList.add('on');
+    glowFront.classList.remove('on');
+    var t = glowFront; glowFront = glowBack; glowBack = t;
+  }
+  function glowForFocus() {
+    clearTimeout(glowTimer);
+    // Wait until the remote rests on a tile: holding right doesn't strobe colours.
+    glowTimer = setTimeout(function () {
+      var r = rows[current], it = r && r.items[r.index];
+      if (!it || r.kind === 'chips') return glowTo(null);
+      if (it.color) return glowTo(it.color);
+      if (it.banner) bannerColor(it.banner, function (c) { if (rows[current] && rows[current].items[rows[current].index] === it) glowTo(c); });
+      else glowTo(null);
+    }, 140);
   }
 
   /* ================= rows and focus =================
      Three rows: pinned apps, all apps, and the chips. Up/down moves between
      rows and each row remembers where you were; left/right moves within a row,
      sliding it so the focused tile always stays in view. */
-  var rows = [];          // [{el, items:[{node, label, action}], index}]
+  var rows = [];
   var current = 0;
 
-  function makeRow(id, items) {
+  function makeRow(id, kind, items) {
     var section = $(id);
     var track = section.querySelector('.track');
     track.textContent = '';
     items.forEach(function (it) { track.appendChild(it.node); });
-    return {el: section, track: track, items: items, index: 0, caption: section.querySelector('.caption')};
+    return {el: section, kind: kind, track: track, items: items, index: 0, caption: section.querySelector('.caption')};
   }
 
   function appTile(app, small) {
     var node = el('div', 'tile' + (small ? ' small' : '') + (app.banner ? ' banner' : ' glass'));
     if (app.banner) node.style.backgroundImage = 'url("' + app.banner + '")';
     node.appendChild(el('div', 'name', app.label));
-    return {node: node, label: app.label, action: {type: 'app', pkg: app.pkg}};
+    return {node: node, label: app.label, banner: app.banner, action: {type: 'app', pkg: app.pkg}};
   }
 
   /* A device on an HDMI input, shown by its own name ("Apple TV") with the
-     port underneath so it's clear what it switches to. */
-  function hdmiTile(n, label) {
+     port above it so it's clear what it switches to. */
+  function hdmiTile(n, label, color) {
     var node = el('div', 'tile text glass');
-    var top = el('div', 'port', 'HDMI ' + n);
-    node.appendChild(top);
+    node.appendChild(el('div', 'port', 'HDMI ' + n));
     node.appendChild(el('div', 'name', label));
-    return {node: node, label: label, action: {type: 'hdmi', n: n, name: label}};
+    return {node: node, label: label, color: color, action: {type: 'hdmi', n: n, name: label}};
   }
 
   function chip(label, action) {
@@ -216,7 +319,7 @@
     var used = {};
     var pinned = [];
     PINNED.forEach(function (p) {
-      if (p.hdmi) { pinned.push(hdmiTile(p.hdmi, p.label)); return; }
+      if (p.hdmi) { pinned.push(hdmiTile(p.hdmi, p.label, p.color)); return; }
       var app = apps.filter(function (a) { return p.pkgs.indexOf(a.pkg) >= 0; })[0] ||
         apps.filter(function (a) { return p.names.indexOf(a.label.toLowerCase()) >= 0; })[0];
       if (app && !used[app.pkg]) { used[app.pkg] = true; pinned.push(appTile(app, false)); }
@@ -225,9 +328,9 @@
 
     var keep = rows.map(function (r) { return r.index; });
     rows = [
-      makeRow('row-apps', pinned),
-      makeRow('row-all', rest),
-      makeRow('row-chips', [chip('HDMI 1', {type: 'hdmi', n: 1}), chip('HDMI 2', {type: 'hdmi', n: 2}), chip('Settings', {type: 'settings'})])
+      makeRow('row-apps', 'apps', pinned),
+      makeRow('row-all', 'all', rest),
+      makeRow('row-chips', 'chips', [chip('HDMI 1', {type: 'hdmi', n: 1}), chip('HDMI 2', {type: 'hdmi', n: 2}), chip('Settings', {type: 'settings'})])
     ].filter(function (r) { return r.items.length; });
     rows.forEach(function (r, i) { r.index = Math.min(keep[i] || 0, r.items.length - 1); });
     current = Math.min(current, rows.length - 1);
@@ -241,11 +344,12 @@
       if (r.caption) r.caption.textContent = r.items[r.index] ? r.items[r.index].label : '';
       slide(r, instant);
     });
+    glowForFocus();
   }
 
   /* Keep the focused tile inside the screen with a margin, moving the row only
-     as far as needed. The CSS transition starts from wherever the row is now,
-     so holding the button down just keeps it gliding. */
+     as far as needed. The transition starts from wherever the row is now, so
+     holding the button down just keeps it gliding. */
   function slide(r, instant) {
     var node = r.items[r.index] && r.items[r.index].node;
     if (!node) return;
@@ -253,21 +357,15 @@
     var left = node.offsetLeft;
     var right = left + node.offsetWidth;
     var x = r.offset || 0;
-    if (right + x > view - 40) x = view - 40 - right;
+    if (right + x > view - 60) x = view - 60 - right;
     if (left + x < 0) x = -left;
     x = Math.min(0, x);
     r.offset = x;
-    if (instant) r.track.style.transition = 'none';
+    var moves = [r.track].concat(r.caption ? [r.caption] : []);
+    if (instant) moves.forEach(function (m) { m.style.transition = 'none'; });
     r.track.style.transform = 'translateX(' + x + 'px)';
-    if (r.caption) {
-      if (instant) r.caption.style.transition = 'none';
-      r.caption.style.transform = 'translateX(' + (left + x) + 'px)';
-    }
-    if (instant) {
-      r.track.getBoundingClientRect();
-      r.track.style.transition = '';
-      if (r.caption) r.caption.style.transition = '';
-    }
+    if (r.caption) r.caption.style.transform = 'translateX(' + (left + x) + 'px)';
+    if (instant) { r.track.getBoundingClientRect(); moves.forEach(function (m) { m.style.transition = ''; }); }
   }
 
   function move(dRow, dCol) {
@@ -355,7 +453,6 @@
 
     if (n && n.event && n.mode !== 'none') {
       var c = el('div', 'card glass');
-      c.style.width = '760px';
       var head = el('div', 'head');
       head.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
       head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
@@ -378,7 +475,6 @@
 
     if (music || parcels.length) {
       var f = el('div', 'card glass');
-      f.style.width = '640px';
       if (music) {
         var m = el('div', 'media');
         var art = el('div', 'art');
@@ -394,11 +490,11 @@
         var row = el('div');
         var top = el('div', 'head');
         top.style.color = 'var(--text)';
+        top.style.fontSize = '22px';
         top.appendChild(el('span', null, p.carrier + (p.for ? ' · for ' + p.for : '') + ' · ' + p.status));
         if (p.window) top.appendChild(el('span', 'mono', p.window));
         row.appendChild(top);
         var steps = el('div', 'steps');
-        steps.style.marginTop = '10px';
         for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (p.step || 0) ? 'done' : ''));
         row.appendChild(steps);
         f.appendChild(row);
