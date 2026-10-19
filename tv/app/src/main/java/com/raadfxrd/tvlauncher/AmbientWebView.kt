@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.webkit.WebView
-import android.webkit.WebViewClient
 
 /**
  * The screensaver is a web page served from the same Vercel project as the
@@ -32,7 +31,8 @@ object AmbientWebView {
         settings.useWideViewPort = false
         settings.loadWithOverviewMode = false   // the page fits itself (see its fit script)
         settings.setSupportZoom(false)
-        webViewClient = WebViewClient()
+        webViewClient = PageFit.client()
+        PageFit.install(this)
         addJavascriptInterface(NowPlaying(context.applicationContext), "TVBridge")
         loadUrl(pageUrl())
     }

@@ -155,18 +155,28 @@
   }
 </style>
 <script>
-  /* The page is drawn at 1920×1080. Android TV reports its screen in its own
-     units (often 960×540 on a 4K set), so scale the whole page to whatever
-     the screen turns out to be, keeping the proportions. */
+  /* The page is drawn at 1920×1080. Android TV hands the page its screen in
+     its own units (960×540 on the A1), so the whole page is zoomed to fit.
+     The app calls __fit(width, height) with the exact size once the page has
+     loaded; until then the page measures for itself, a few times, because a
+     TV's WebView can report 0 before its first layout. */
   (function () {
-    function fit() {
-      var root = document.documentElement;
-      root.style.zoom = '';
-      var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-      if (s > 0 && Math.abs(s - 1) > 0.01) root.style.zoom = s;
+    var root = document.documentElement;
+    function fit(w, h) {
+      w = w || window.innerWidth || root.clientWidth || (window.screen && screen.width) || 0;
+      h = h || window.innerHeight || root.clientHeight || (window.screen && screen.height) || 0;
+      if (!w || !h) return;
+      var s = Math.min(w / 1920, h / 1080);
+      root.style.zoom = Math.abs(s - 1) > 0.01 ? String(s) : '';
     }
-    fit();
-    window.addEventListener('resize', fit);
+    var given = null;
+    window.__fit = function (w, h) { given = [w, h]; fit(w, h); };
+    var again = function () { if (given) fit(given[0], given[1]); else fit(); };
+    again();
+    window.addEventListener('resize', again);
+    document.addEventListener('DOMContentLoaded', again);
+    window.addEventListener('load', again);
+    var tries = 0, t = setInterval(function () { again(); if (++tries > 10) clearInterval(t); }, 300);
   })();
 </script>
 </head>

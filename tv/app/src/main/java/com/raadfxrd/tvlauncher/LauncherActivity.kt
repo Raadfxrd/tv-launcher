@@ -10,7 +10,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
 
 /**
@@ -42,7 +41,8 @@ class LauncherActivity : Activity() {
             settings.loadWithOverviewMode = false   // the page fits itself (see its fit script)
             settings.setSupportZoom(false)
             settings.allowFileAccess = true
-            webViewClient = WebViewClient()
+            webViewClient = PageFit.client()
+            PageFit.install(this)
             addJavascriptInterface(bridge, "TVBridge")
             isFocusable = true
             isFocusableInTouchMode = true
