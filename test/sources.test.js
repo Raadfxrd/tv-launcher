@@ -158,3 +158,24 @@ test('trending: series and films merged by popularity, backdrops required', () =
 	assert.equal(out[0].backdrop, 'https://image.tmdb.org/t/p/w1280/b.jpg');
 	assert.equal(out[1].year, '2025');
 });
+
+test('trending: this week\'s trending titles, kept only where they are in the subscription', () => {
+	const {pickTrending} = require('../lib/trending');
+	const trending = [
+		{id: 10, kind: 'series', name: 'Hot on Netflix', backdrop_path: '/n.jpg', first_air_date: '2026-09-01'},
+		{id: 11, kind: 'film', title: 'Rent only', backdrop_path: '/r.jpg', release_date: '2026-08-01'},
+		{id: 12, kind: 'series', name: 'Hot on HBO', backdrop_path: '/h.jpg'},
+	];
+	const available = new Map([['series:10', [8, 337]], ['film:11', []], ['series:12', [1899]]]);
+	assert.deepEqual(pickTrending(trending, available, 8).map((t) => t.title), ['Hot on Netflix']);
+	assert.deepEqual(pickTrending(trending, available, 1899).map((t) => t.title), ['Hot on HBO']);
+});
+
+test('trending: a service with few trending titles is topped up with recent releases, no repeats', () => {
+	const {fillUp} = require('../lib/trending');
+	const hot = [{title: 'A', kind: 'series'}];
+	const recent = [{title: 'A', kind: 'series'}, {title: 'B', kind: 'film'}, {title: 'C', kind: 'series'}];
+	assert.deepEqual(fillUp(hot, recent).map((t) => t.title), ['A', 'B', 'C']);
+	const plenty = ['1', '2', '3', '4', '5'].map((title) => ({title, kind: 'film'}));
+	assert.equal(fillUp(plenty, recent), plenty);
+});
