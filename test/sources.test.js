@@ -186,3 +186,9 @@ test('trending: a title listed twice shows once', () => {
 	const out = pickTrending([t, {...t}], new Map([['series:5', [283]]]), 283);
 	assert.deepEqual(out.map((x) => x.title), ['Re:ZERO']);
 });
+
+test('travel: NS gets Dutch time with its offset, no milliseconds', () => {
+	const {nsDateTime} = require('../lib/travel');
+	assert.equal(nsDateTime(new Date('2026-10-20T06:25:00.000Z')), '2026-10-20T08:25:00+02:00');   // summer time
+	assert.equal(nsDateTime(new Date('2026-12-01T07:00:30.500Z')), '2026-12-01T08:00:30+01:00');   // winter time
+});
