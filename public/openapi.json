@@ -1,0 +1,232 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "tv-launcher",
+    "version": "1.0.0",
+    "description": "The API behind the Bravia launcher and screensaver: calendar, trip and weather for the cards, parcels from shipping emails, photos for the screensaver and what's popular per streaming service. Every GET needs ?token=FEED_TOKEN; the inbound webhook has its own INBOUND_TOKEN."
+  },
+  "servers": [{"url": "/"}],
+  "tags": [
+    {"name": "Screen", "description": "What the TV asks for."},
+    {"name": "Parcels", "description": "Shipping emails in, parcels out."}
+  ],
+  "components": {
+    "securitySchemes": {
+      "feedToken": {"type": "apiKey", "in": "query", "name": "token", "description": "FEED_TOKEN from Vercel's environment variables."},
+      "inboundToken": {"type": "apiKey", "in": "query", "name": "token", "description": "INBOUND_TOKEN: the secret in Postmark's webhook URL."}
+    },
+    "schemas": {
+      "Error": {"type": "object", "properties": {"error": {"type": "string"}}},
+      "Event": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "start": {"type": "string", "format": "date-time"},
+          "end": {"type": "string", "format": "date-time"},
+          "location": {"type": ["string", "null"]},
+          "calendar": {"type": ["string", "null"]}
+        }
+      },
+      "Leg": {
+        "type": "object",
+        "properties": {
+          "mode": {"type": "string", "enum": ["walk", "transit"]},
+          "minutes": {"type": "integer"},
+          "vehicle": {"type": "string", "description": "train, bus, tram, metro, ferry"},
+          "line": {"type": "string", "description": "e.g. Sprinter, Bus 15"},
+          "departure": {"type": "string", "format": "date-time"},
+          "platform": {"type": ["string", "null"]},
+          "delayMinutes": {"type": "integer"},
+          "cancelled": {"type": "boolean"}
+        }
+      },
+      "Trip": {
+        "type": ["object", "null"],
+        "properties": {
+          "configured": {"type": "boolean"},
+          "leaveAt": {"type": "string", "format": "date-time"},
+          "durationMinutes": {"type": "integer"},
+          "disrupted": {"type": "boolean", "description": "Delays, cancellations or platform changes: the card turns amber."},
+          "legs": {"type": "array", "items": {"$ref": "#/components/schemas/Leg"}},
+          "error": {"type": "string"}
+        }
+      },
+      "NextUp": {
+        "type": "object",
+        "properties": {
+          "configured": {"type": "boolean"},
+          "mode": {"type": "string", "enum": ["live", "preview", "none"], "description": "live: the next event today. preview: tomorrow's first, from PREVIEW_HOUR. none: nothing to show."},
+          "event": {"$ref": "#/components/schemas/Event"},
+          "destination": {
+            "type": ["object", "null"],
+            "properties": {
+              "travel": {"type": "boolean"},
+              "reason": {"type": ["string", "null"], "enum": ["no-location", "online", "home", null]},
+              "address": {"type": ["string", "null"]},
+              "label": {"type": ["string", "null"]}
+            }
+          },
+          "trip": {"$ref": "#/components/schemas/Trip"},
+          "errors": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "Weather": {
+        "type": "object",
+        "properties": {
+          "configured": {"type": "boolean"},
+          "temperature": {"type": ["integer", "null"], "description": "°C, Open-Meteo"},
+          "weatherCode": {"type": ["integer", "null"], "description": "WMO weather code"},
+          "rain": {"type": ["object", "null"], "properties": {"raining": {"type": "boolean"}, "text": {"type": "string", "description": "Buienradar, next two hours"}}}
+        }
+      },
+      "ParcelToday": {
+        "type": "object",
+        "properties": {
+          "carrier": {"type": "string", "example": "PostNL"},
+          "for": {"type": ["string", "null"], "description": "A label from OTHER_ADDRESSES, null for home."},
+          "shop": {"type": ["string", "null"]},
+          "status": {"type": "string", "example": "out for delivery"},
+          "window": {"type": ["string", "null"], "example": "14:00–16:30"},
+          "step": {"type": "integer", "minimum": 1, "maximum": 3},
+          "verified": {"type": "boolean", "description": "Confirmed by the carrier's own tracking (DHL)."}
+        }
+      },
+      "Feed": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {"type": "string", "format": "date-time"},
+          "nextUp": {"$ref": "#/components/schemas/NextUp"},
+          "weather": {"$ref": "#/components/schemas/Weather"},
+          "packages": {"type": "object", "properties": {"configured": {"type": "boolean"}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/ParcelToday"}}, "error": {"type": "string"}}}
+        }
+      },
+      "Photo": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "url": {"type": "string", "description": "1920×1080 JPEG, cropped by Unsplash"},
+          "color": {"type": "string"},
+          "alt": {"type": "string"},
+          "credit": {"type": "object", "properties": {"name": {"type": "string"}, "link": {"type": "string"}}}
+        }
+      },
+      "Title": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "kind": {"type": "string", "enum": ["series", "film"]},
+          "year": {"type": ["string", "null"]},
+          "backdrop": {"type": "string", "description": "TMDB backdrop, 1280 wide"}
+        }
+      },
+      "Parcel": {
+        "type": "object",
+        "description": "A parcel as stored, one per tracking code.",
+        "properties": {
+          "key": {"type": "string"},
+          "code": {"type": "string"},
+          "carrier": {"type": "string"},
+          "status": {"type": "string", "enum": ["ordered", "shipped", "in_transit", "out_for_delivery", "delivery_failed", "delivered"]},
+          "shop": {"type": ["string", "null"]},
+          "postalCode": {"type": ["string", "null"]},
+          "place": {"type": ["string", "null"]},
+          "expectedDate": {"type": ["string", "null"], "format": "date"},
+          "windowStart": {"type": ["string", "null"]},
+          "windowEnd": {"type": ["string", "null"]},
+          "verified": {"type": "boolean"},
+          "seenIn": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/feed": {
+      "get": {
+        "tags": ["Screen"],
+        "summary": "Everything the cards show",
+        "description": "Next up (calendar → the trip there by NS or Google), weather and today's parcels, in one answer. Each part fails on its own, so a broken calendar never takes the weather with it. Active DHL parcels are re-checked with DHL at most every 15 minutes.",
+        "security": [{"feedToken": []}],
+        "x-cache": 120,
+        "x-preview": "feed",
+        "responses": {
+          "200": {"description": "The feed", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Feed"}}}},
+          "401": {"description": "Missing or wrong token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/api/trending": {
+      "get": {
+        "tags": ["Screen"],
+        "summary": "What's hot per streaming service",
+        "description": "TMDB's trending titles of this week, kept per service where they're in the subscription in the Netherlands; services with too few are topped up with their popular releases of the last two years. Keys: apple, netflix, disney, prime, hbo, crunchyroll.",
+        "security": [{"feedToken": []}],
+        "x-cache": 21600,
+        "x-preview": "trending",
+        "responses": {
+          "200": {
+            "description": "Titles per service",
+            "content": {"application/json": {"schema": {"type": "object", "properties": {"configured": {"type": "boolean"}, "region": {"type": "string"}, "services": {"type": "object", "additionalProperties": {"type": "array", "items": {"$ref": "#/components/schemas/Title"}}}}}}}
+          },
+          "401": {"description": "Missing or wrong token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/api/photos": {
+      "get": {
+        "tags": ["Screen"],
+        "summary": "Screensaver photos",
+        "description": "Every photo in the Unsplash collection (UNSPLASH_COLLECTION_ID), sized for the TV, with the photographer's credit.",
+        "security": [{"feedToken": []}],
+        "x-cache": 3600,
+        "x-preview": "photos",
+        "responses": {
+          "200": {"description": "The photos", "content": {"application/json": {"schema": {"type": "object", "properties": {"configured": {"type": "boolean"}, "photos": {"type": "array", "items": {"$ref": "#/components/schemas/Photo"}}}}}}},
+          "401": {"description": "Missing or wrong token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/api/inbox": {
+      "get": {
+        "tags": ["Parcels"],
+        "summary": "What the parcel pipeline has seen",
+        "description": "The last 25 emails to shipping@ and what happened to each (a parcel, ignored and why, Proton's forwarding link), plus every parcel being tracked. Never cached.",
+        "security": [{"feedToken": []}],
+        "x-preview": "inbox",
+        "responses": {
+          "200": {
+            "description": "Emails and parcels",
+            "content": {"application/json": {"schema": {"type": "object", "properties": {
+              "emails": {"type": "array", "items": {"type": "object", "properties": {"at": {"type": "string", "format": "date-time"}, "from": {"type": "string"}, "subject": {"type": "string"}, "result": {"type": "string"}, "link": {"type": "string"}}}},
+              "parcels": {"type": "array", "items": {"$ref": "#/components/schemas/Parcel"}}
+            }}}}
+          },
+          "401": {"description": "Missing or wrong token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/api/inbound": {
+      "post": {
+        "tags": ["Parcels"],
+        "summary": "One shipping email in",
+        "description": "Postmark's inbound webhook posts every email to shipping@ here. Newsletters are dropped by keywords first; the rest is read by Claude, checked, and merged into one parcel per tracking code. The same email (by Message-ID) is only processed once. Errors answer 500 so Postmark retries.",
+        "security": [{"inboundToken": []}],
+        "x-preview": "inbound",
+        "requestBody": {
+          "required": true,
+          "description": "Postmark's inbound JSON, or the plain shape {from, to, subject, date, text, html}.",
+          "content": {"application/json": {
+            "schema": {"type": "object", "properties": {"From": {"type": "string"}, "To": {"type": "string"}, "Subject": {"type": "string"}, "Date": {"type": "string"}, "MessageID": {"type": "string"}, "TextBody": {"type": "string"}, "HtmlBody": {"type": "string"}}},
+            "example": {"From": "newsletter@shop.example", "To": "shipping@borysbabas.dev", "Subject": "This week's deals", "MessageID": "test-newsletter-1", "TextBody": "Our autumn sale has started: 20% off everything."}
+          }}
+        },
+        "responses": {
+          "200": {"description": "What happened", "content": {"application/json": {"schema": {"type": "object", "properties": {"result": {"type": "string", "enum": ["parcel", "ignored", "duplicate", "forwarding-confirmation"]}, "reason": {"type": "string"}, "parcels": {"type": "array", "items": {"type": "object", "properties": {"key": {"type": "string"}, "status": {"type": "string"}}}}}}}}},
+          "400": {"description": "Body is not JSON"},
+          "401": {"description": "Missing or wrong token"},
+          "405": {"description": "Only POST"},
+          "500": {"description": "Something failed; Postmark will retry"}
+        }
+      }
+    }
+  }
+}

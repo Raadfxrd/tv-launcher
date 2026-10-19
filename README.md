@@ -23,6 +23,15 @@ responses are cached at Vercel's edge for two minutes, so the upstream APIs
 are hit at most that often, and only while the TV is on. Music comes from the
 TV itself through `window.TVBridge`, never through the API.
 
+## API explorer
+
+Open `https://<your-vercel-domain>/docs/` (the bare domain redirects there),
+paste `FEED_TOKEN`, and every endpoint is listed with a health dot and its
+response time. Run any call, see the answer as the TV would show it (cards,
+backdrops, photos, the parcel inbox), as folded JSON, or field by field from
+the schema. The spec itself is `/openapi.json`, so Swagger, Postman or
+Insomnia can import it too.
+
 ## Setup
 
 ### 1. Vercel
