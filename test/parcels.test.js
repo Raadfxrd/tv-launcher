@@ -80,7 +80,7 @@ test('only today matters on the TV', () => {
 	];
 	const items = forToday(parcels, now);
 	assert.equal(items.length, 2);
-	assert.deepEqual(items[0], {carrier: 'DHL', shop: null, status: 'delivered 07:48', window: null, step: 3, verified: true});
+	assert.deepEqual(items[0], {carrier: 'DHL', for: null, shop: null, status: 'delivered 07:48', window: null, step: 3, verified: true});
 	assert.equal(items[1].status, 'out for delivery');
 	assert.equal(items[1].window, '14:00–16:30');
 	assert.deepEqual(stale(parcels.map((p) => ({...p, updatedAt: now.toISOString()})), now), ['d']);
@@ -123,4 +123,22 @@ test('inbound end to end, with Claude and storage faked', async () => {
 	} finally {
 		global.fetch = realFetch;
 	}
+});
+
+test('parcels know whose address they go to', () => {
+	const {placeOf, addresses} = require('../lib/parcels');
+	const env = {HOME_POSTCODE: '1102 ab', OTHER_ADDRESSES: 'Zus=1234CD;Broken=xx'};
+	assert.deepEqual(addresses(env), [{label: 'home', postcode: '1102AB'}, {label: 'Zus', postcode: '1234CD'}]);
+	assert.equal(placeOf('1234CD', env), 'Zus');
+	assert.equal(placeOf('1102AB', env), 'home');
+	assert.equal(placeOf(null, env), null);
+
+	const parcels = [
+		{key: 'a', carrier: 'postnl', status: 'out_for_delivery', place: 'Zus'},
+		{key: 'b', carrier: 'dhl', status: 'out_for_delivery', place: 'home'},
+		{key: 'c', carrier: 'dpd', status: 'out_for_delivery', place: null},
+	];
+	const shown = forToday(parcels, now);
+	assert.deepEqual(shown.map((p) => p.for), ['Zus', null, null]);
+	assert.equal(forToday(parcels, now, 'Europe/Amsterdam', {otherDeliveries: 'hide'}).length, 2);
 });

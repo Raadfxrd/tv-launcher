@@ -457,7 +457,7 @@
         row.appendChild(ic);
         var info = el('div', 'grow');
         var top = el('div', 'row between'); top.style.fontSize = '24px';
-        top.appendChild(el('span', null, p.carrier + (p.status ? ' · ' + p.status : '')));
+        top.appendChild(el('span', null, p.carrier + (p.for ? ' · for ' + p.for : '') + (p.status ? ' · ' + p.status : '')));
         if (p.window) top.appendChild(el('span', 'mono', p.window));
         info.appendChild(top);
         var steps = el('div', 'steps');

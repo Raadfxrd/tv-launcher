@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const {normalise, forwardingConfirmation} = require('../lib/mail');
-const {askClaude, validate, verifyDhl, merge, stale} = require('../lib/parcels');
+const {askClaude, validate, verifyDhl, merge, stale, placeOf} = require('../lib/parcels');
 const {getParcels, putParcel, deleteParcels, logInbound} = require('../lib/store');
 const {send} = require('../lib/http');
 
@@ -49,10 +49,11 @@ async function handle(mail, env = process.env) {
 	const parcels = await getParcels(env);
 	const key = `${reading.carrier}:${reading.code}`;
 	let parcel = merge(parcels.find((p) => p.key === key), reading, mail);
+	parcel.place = placeOf(parcel.postalCode, env);
 	parcel = await verifyDhl(parcel, env).catch(() => parcel);
 	await putParcel(parcel, env);
 	await deleteParcels(stale(parcels.filter((p) => p.key !== key)), env);
-	await logInbound({...entry, result: `${parcel.carrier} ${parcel.code}: ${parcel.status}${parcel.verified ? ' (confirmed by carrier)' : ''}`}, env);
+	await logInbound({...entry, result: `${parcel.carrier} ${parcel.code}: ${parcel.status}${parcel.place && parcel.place !== 'home' ? ` (for ${parcel.place})` : ''}${parcel.verified ? ' (confirmed by carrier)' : ''}`}, env);
 	return {result: 'parcel', key, status: parcel.status};
 }
 

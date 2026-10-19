@@ -53,7 +53,10 @@ async function packages(env, now) {
 			await putParcel(p, env).catch(() => null);
 		})
 	);
-	return {configured: true, items: forToday(parcels, now, env.HOME_TIMEZONE || 'Europe/Amsterdam')};
+	return {
+		configured: true,
+		items: forToday(parcels, now, env.HOME_TIMEZONE || 'Europe/Amsterdam', {otherDeliveries: env.OTHER_DELIVERIES || 'show'}),
+	};
 }
 
 module.exports = async function handler(req, res) {
