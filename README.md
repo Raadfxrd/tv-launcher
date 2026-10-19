@@ -26,8 +26,8 @@ TV itself through `window.TVBridge`, never through the API.
 ## API explorer
 
 Open `https://<your-vercel-domain>/docs/` (the bare domain redirects there).
-It looks like the launcher: your photos full screen, one tile per endpoint,
-the answer in glass cards along the bottom. Paste `FEED_TOKEN` once and every
+It looks like the launcher: the forest full screen, one glass tile per
+endpoint, and the request and response in glass cards along the bottom. Paste `FEED_TOKEN` once and every
 tile shows a dot for whether it's up; arrows (or a click) move along the row,
 Enter runs the call again, J opens the raw JSON. The spec is
 `/openapi.json`, so Swagger, Postman or Insomnia can import it too.

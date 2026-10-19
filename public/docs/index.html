@@ -47,16 +47,16 @@
           radial-gradient(60% 60% at 92% 88%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
           #6C6589; }
   .stage { overflow: hidden; }
-  .pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%;
-         opacity: 0; transform: scale(1); transition: opacity 1.4s ease, transform 14s linear; will-change: opacity, transform; }
-  .pic.on { opacity: 1; transform: scale(1.06); }
-  .pic.soft { filter: blur(60px) saturate(140%) brightness(0.85); inset: -10%; width: 120%; height: 120%; }
+  /* Your forest, still: the glass does the moving. */
+  .pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; opacity: 0; transition: opacity 1.2s ease; }
+  .pic.on { opacity: 1; }
   .shade { pointer-events: none;
            background:
              radial-gradient(60% 50% at 12% 22%, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0) 100%),
              linear-gradient(90deg, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0.16) 40%, rgba(10,8,24,0) 62%),
              linear-gradient(0deg, rgba(10,8,24,0.42) 0%, rgba(10,8,24,0.16) 22%, rgba(10,8,24,0) 42%),
-             linear-gradient(180deg, rgba(10,8,24,0.28) 0%, rgba(10,8,24,0) 20%); }
+             linear-gradient(180deg, rgba(10,8,24,0.28) 0%, rgba(10,8,24,0) 20%),
+             linear-gradient(rgba(10,8,24,0.16), rgba(10,8,24,0.16)); }
 
   .glass { background: var(--glass-fill);
            box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.10), var(--lift-1);
@@ -86,7 +86,6 @@
           box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.10), var(--lift-1);
           -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
           transform: translateZ(0); transition: transform 0.4s var(--settle), box-shadow 0.4s var(--settle); }
-  .tile.pictured::before { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10,8,24,0.55) 0%, rgba(10,8,24,0) 55%), linear-gradient(180deg, rgba(10,8,24,0.45) 0%, rgba(10,8,24,0) 40%); }
   .tile > * { position: relative; }
   .tile .route { font-family: var(--mono); font-size: clamp(12px, 0.95vw, 18px); color: var(--muted); letter-spacing: 0.04em; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 1px 10px rgba(0,0,0,0.4); }
   .tile .name { font-size: clamp(20px, 1.6vw, 30px); font-weight: 500; letter-spacing: -0.01em; text-shadow: 0 1px 12px rgba(0,0,0,0.4); }
@@ -140,11 +139,16 @@
   .card .bad { color: var(--bad); }
   .card .item { display: flex; flex-direction: column; gap: 2px; }
   .card .item + .item { padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .card .url { font-size: clamp(15px, 1.15vw, 21px); word-break: break-all; white-space: normal; }
+  .facts { display: flex; flex-direction: column; gap: 4px; }
+  .fact { display: flex; justify-content: space-between; gap: 16px; font-size: clamp(13px, 1vw, 18px); color: var(--muted); }
+  .fact .mono { color: var(--text); }
+  .json.inline { flex: none; overflow: visible; padding: 8px 0 0 18px; border-top: 1px solid rgba(255,255,255,0.1); }
   .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
   .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); }
   .steps i.done { background: var(--accent); }
   .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .thumbs a { aspect-ratio: 16 / 9; border-radius: 10px; background: rgba(255,255,255,0.08) center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--glass-edge); }
+  .thumbs a { aspect-ratio: 16 / 9; border-radius: 10px; background: rgba(255,255,255,0.08) center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--glass-edge), var(--lift-1); }
 
   .input { width: 100%; border: 0; outline: none; border-radius: 14px; padding: 12px 14px; background: rgba(10, 8, 24, 0.22);
            box-shadow: inset 0 0 0 1px var(--glass-edge); font-family: var(--mono); font-size: clamp(13px, 1vw, 17px); }
@@ -203,7 +207,7 @@
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
-<div class="stage" aria-hidden="true"><img class="pic" id="picA" alt=""><img class="pic" id="picB" alt=""></div>
+<div class="stage" aria-hidden="true"><img class="pic" id="forest" src="forest.jpg" alt=""></div>
 <div class="shade" aria-hidden="true"></div>
 
 <div class="page">
@@ -265,7 +269,6 @@
 
   var tokens = {feed: stored('tvl.token'), inbound: stored('tvl.inbound')};
   var endpoints = [], results = {}, focus = 0, bodies = {};
-  var photos = [], titles = [];
 
   /* ================= the row ================= */
   function load() {
@@ -308,7 +311,6 @@
     history.replaceState(null, '', '#' + ep.method + ep.path);
     slide(instant);
     about(ep);
-    stageFor(ep);
     dock(ep);
     if (!sheetClosed()) openSheet();
   }
@@ -343,37 +345,9 @@
     }, 260);
   }
 
-  /* ================= the picture behind it =================
-     Trending shows what's trending, everything else your own photos: the same
-     pictures the TV shows. Before there's a token, the launcher's gradient. */
-  var picFront = $('picA'), picBack = $('picB'), stageKey = null, stageCycle = null, photoIndex = 0, titleIndex = 0;
-  function stageFor(ep) {
-    var key = ep.op['x-preview'] === 'trending' && titles.length ? 'trending' : photos.length ? 'photos:' + ep.path : null;
-    if (key === stageKey) return;
-    stageKey = key;
-    clearInterval(stageCycle);
-    if (!key) return;
-    var next = function () {
-      if (key === 'trending') return {src: titles[titleIndex++ % titles.length].backdrop};
-      return {src: photos[photoIndex++ % photos.length].url, soft: ep.method === 'post'};
-    };
-    picture(next());
-    stageCycle = setInterval(function () { picture(next()); }, 9000);
-  }
-  function picture(p) {
-    var key = stageKey, img = new Image();
-    img.onload = function () {
-      if (key !== stageKey) return;
-      picBack.classList.remove('on');
-      picBack.classList.toggle('soft', !!p.soft);
-      picBack.src = p.src;
-      picBack.getBoundingClientRect();
-      picBack.classList.add('on');
-      picFront.classList.remove('on');
-      var t = picFront; picFront = picBack; picBack = t;
-    };
-    img.src = p.src;
-  }
+  /* ================= the picture behind it ================= */
+  var forest = $('forest');
+  if (forest.complete) forest.classList.add('on'); else forest.onload = function () { forest.classList.add('on'); };
 
   /* ================= calling ================= */
   function tokenFor(ep) { return ep.inbound ? tokens.inbound : tokens.feed; }
@@ -391,7 +365,7 @@
       return r.text().then(function (text) {
         var data = null;
         try { data = JSON.parse(text); } catch (e) { data = null; }
-        return {status: r.status, ok: r.ok, ms: Math.round(performance.now() - started), cache: r.headers.get('x-vercel-cache'), data: data, text: text, at: new Date()};
+        return {status: r.status, ok: r.ok, ms: Math.round(performance.now() - started), cache: r.headers.get('x-vercel-cache'), type: r.headers.get('content-type'), bytes: new Blob([text]).size, data: data, text: text, at: new Date()};
       });
     }, function (err) {
       return {status: 0, ok: false, ms: Math.round(performance.now() - started), data: null, text: String(err), at: new Date()};
@@ -399,16 +373,6 @@
       results[ep.path] = res;
       var problem = res.ok && res.data && (res.data.error || res.data.configured === false);
       ep.dot.className = 'dot ' + (res.ok ? (problem ? 'warn' : 'ok') : res.status === 401 ? 'warn' : 'bad');
-      if (ep.op['x-preview'] === 'photos' && res.ok && res.data && res.data.photos && res.data.photos.length && !photos.length) {
-        photos = res.data.photos.slice().sort(function () { return Math.random() - 0.5; });
-        stageKey = null; stageFor(endpoints[focus]);
-      }
-      if (ep.op['x-preview'] === 'trending' && res.ok && res.data && res.data.services) {
-        titles = [].concat.apply([], Object.keys(res.data.services).map(function (k) { return res.data.services[k]; }));
-        dressTiles();
-        if (endpoints[focus] === ep) { stageKey = null; stageFor(ep); }
-      }
-      if (ep.op['x-preview'] === 'photos') dressTiles();
       if (endpoints[focus] === ep) { dock(ep); if (!sheetClosed()) openSheet(); }
       return res;
     });
@@ -427,20 +391,8 @@
   /* Every GET once, through the edge cache, so each tile shows if it's up. */
   function checkAll() {
     if (!tokens.feed) return;
-    // Photos and trending first: they dress the screen.
     endpoints.filter(function (e) { return e.method === 'get'; })
-      .sort(function (a, b) { return (b.op['x-preview'] === 'photos') - (a.op['x-preview'] === 'photos'); })
       .forEach(function (ep) { call(ep); });
-  }
-
-  /* Tiles for pictures get one: a trending backdrop, one of your photos. */
-  function dressTiles() {
-    endpoints.forEach(function (ep, i) {
-      var src = null;
-      if (ep.op['x-preview'] === 'trending' && titles.length) src = titles[0].backdrop.replace('/w1280/', '/w500/');
-      if (ep.op['x-preview'] === 'photos' && photos.length) src = photos[0].url.replace(/([?&])w=1920/, '$1w=600').replace(/([?&])h=1080/, '$1h=338');
-      if (src) { ep.tile.style.backgroundImage = 'url("' + src + '")'; ep.tile.classList.add('pictured'); }
-    });
   }
 
   /* ================= the dock ================= */
@@ -458,7 +410,7 @@
       now.appendChild(tokenCard(ep));
       return;
     }
-    if (ep.method === 'post') now.appendChild(bodyCard(ep));
+    now.appendChild(requestCard(ep, res));
     if (!res) {
       big.textContent = '–';
       line.textContent = ep.method === 'post' ? 'Not sent yet' : 'Asking…';
@@ -466,22 +418,57 @@
     }
     big.appendChild(document.createTextNode(res.status ? res.ms : '–'));
     big.appendChild(el('small', null, res.status ? 'ms' : ''));
-    var state = el('span', res.ok ? null : res.status === 401 || res.status === 405 ? 'warn' : 'bad', res.status ? String(res.status) : 'no answer');
-    line.appendChild(state);
+    line.appendChild(el('span', res.ok ? null : res.status === 401 || res.status === 405 ? 'warn' : 'bad', res.status ? String(res.status) : 'no answer'));
     var rest = [res.cache ? 'cache ' + res.cache.toLowerCase() : null, hhmm(res.at)].filter(Boolean);
     if (rest.length) line.appendChild(document.createTextNode(' · ' + rest.join(' · ')));
     $('caption').textContent = ep.name + (res.status ? ' · ' + res.ms + ' ms' : '');
-
-    if (!res.ok || !res.data) {
-      var c = card('Answer');
-      c.appendChild(el('div', 'title', res.status === 401 ? 'Token not accepted' : res.status ? 'Something went wrong' : 'No answer'));
-      c.appendChild(el('div', 'sub', res.status === 401 ? 'Use ' + (ep.inbound ? 'INBOUND_TOKEN' : 'FEED_TOKEN') + ' from Vercel → Settings → Environment Variables.' : (res.data && res.data.error) || res.text.slice(0, 200)));
-      if (res.status === 401) c.appendChild(tokenField(ep));
-      now.appendChild(c);
-      return;
-    }
-    (VIEWS[ep.op['x-preview']] || rawView)(res.data).forEach(function (c) { now.appendChild(c); });
+    now.appendChild(responseCard(ep, res));
   }
+
+  var REASONS = {200: 'OK', 400: 'Bad request', 401: 'Unauthorised', 404: 'Not found', 405: 'Method not allowed', 500: 'Server error', 502: 'Bad gateway', 504: 'Timed out'};
+  function size(b) { return b == null ? '' : b > 1024 ? (b / 1024).toFixed(1) + ' kB' : b + ' B'; }
+
+  /* What goes out: method, URL (token masked), how it's authorised and cached. */
+  function requestCard(ep, res) {
+    var c = card('Request', ep.method.toUpperCase(), ep.method === 'post');
+    c.appendChild(el('div', 'title mono url', ep.path + '?token=' + (tokenFor(ep) ? '••••••' : (ep.inbound ? 'INBOUND_TOKEN' : 'FEED_TOKEN'))));
+    var facts = el('div', 'facts');
+    fact(facts, 'Auth', (ep.inbound ? 'INBOUND_TOKEN' : 'FEED_TOKEN') + ' in the query');
+    fact(facts, 'Cache', ep.op['x-cache'] ? forHow(ep.op['x-cache']) + ' at the edge' : 'none');
+    if (ep.op.requestBody) fact(facts, 'Body', 'JSON');
+    c.appendChild(facts);
+    if (res && res.status === 401) c.appendChild(tokenField(ep));
+    if (ep.method === 'post') {
+      c.appendChild(el('div', 'sub', 'This really runs: a shipping email costs a Claude call and can put a parcel on the TV. The example is a newsletter, dropped for free; each MessageID is handled once.'));
+      var ta = el('textarea', 'input');
+      ta.spellcheck = false;
+      ta.value = bodyFor(ep);
+      ta.addEventListener('input', function () { bodies[ep.path] = ta.value; });
+      ta.addEventListener('keydown', function (e) { e.stopPropagation(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run(ep); });
+      c.appendChild(ta);
+      var go = el('button', 'send', 'Send');
+      go.type = 'button';
+      go.addEventListener('click', function () { run(ep); });
+      c.appendChild(go);
+    }
+    return c;
+  }
+
+  /* What comes back: status, size, type, and the JSON itself. */
+  function responseCard(ep, res) {
+    var c = card('Response', res.status ? res.status + ' ' + (REASONS[res.status] || '') : 'no answer', true);
+    var facts = el('div', 'facts');
+    fact(facts, 'Size', size(res.bytes));
+    if (res.type) fact(facts, 'Type', res.type.split(';')[0]);
+    if (res.cache) fact(facts, 'Edge', res.cache.toLowerCase());
+    c.appendChild(facts);
+    var j = el('div', 'json inline');
+    if (res.data != null) j.appendChild(node(res.data, null, 0, 1));
+    else j.appendChild(el('div', 'leaf', res.text || ''));
+    c.appendChild(j);
+    return c;
+  }
+  function fact(box, k, v) { var r = el('div', 'fact'); r.appendChild(el('span', null, k)); r.appendChild(el('span', 'mono', v)); box.appendChild(r); }
 
   function card(label, right, wide) {
     var c = el('div', 'card glass' + (wide ? ' wide' : ''));
@@ -529,157 +516,6 @@
     }
     return bodies[ep.path];
   }
-  function bodyCard(ep) {
-    var c = card('Email', 'JSON', true);
-    c.appendChild(el('div', 'sub', 'This really runs: a shipping email costs a Claude call and can put a parcel on the TV. The example is a newsletter, dropped for free; each MessageID is handled once.'));
-    var ta = el('textarea', 'input');
-    ta.spellcheck = false;
-    ta.value = bodyFor(ep);
-    ta.addEventListener('input', function () { bodies[ep.path] = ta.value; });
-    ta.addEventListener('keydown', function (e) { e.stopPropagation(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run(ep); });
-    c.appendChild(ta);
-    var go = el('button', 'send', 'Send');
-    go.type = 'button';
-    go.addEventListener('click', function () { run(ep); });
-    c.appendChild(go);
-    return c;
-  }
-
-  /* ================= what each answer looks like ================= */
-  var VIEWS = {
-    feed: function (d) {
-      var out = [];
-      var n = d.nextUp || {};
-      var next = card(n.mode === 'preview' ? 'Tomorrow' : 'Next up', n.event ? hhmm(n.event.start) + '–' + hhmm(n.event.end) : null, true);
-      if (n.error) next.appendChild(el('div', 'sub bad', n.error));
-      else if (!n.configured) next.appendChild(el('div', 'sub', 'The calendar isn’t set up.'));
-      else if (!n.event) next.appendChild(el('div', 'title', 'Nothing coming up'));
-      else {
-        next.appendChild(el('div', 'title', n.event.title));
-        if (n.event.location) next.appendChild(el('div', 'sub', n.event.location));
-        var t = n.trip;
-        if (t && t.error) next.appendChild(el('div', 'sub bad', t.error));
-        else if (t && t.configured && t.leaveAt) {
-          var leave = el('div', 'leave' + (t.disrupted ? ' late' : ''));
-          leave.appendChild(el('b', null, 'Leave ' + hhmm(t.leaveAt)));
-          var ride = (t.legs || []).filter(function (l) { return l.mode === 'transit'; })[0];
-          var bits = [t.durationMinutes + ' min'];
-          if (ride) bits.unshift((ride.line || '') + ' ' + (ride.departure ? hhmm(ride.departure) : '') + (ride.platform ? ' · Spoor ' + ride.platform : ''));
-          var rest = el('span', 'sub', bits.join(' · '));
-          if (ride && ride.delayMinutes > 0) { rest.appendChild(document.createTextNode(' ')); rest.appendChild(el('span', 'warn', '+' + ride.delayMinutes)); }
-          leave.appendChild(rest);
-          next.appendChild(leave);
-        } else if (n.destination && !n.destination.travel) next.appendChild(el('div', 'sub', 'No trip needed (' + (n.destination.reason || 'no location') + ')'));
-      }
-      (n.errors || []).forEach(function (e) { next.appendChild(el('div', 'sub bad', e)); });
-      out.push(next);
-
-      var w = d.weather || {}, p = d.packages || {};
-      var side = card('Outside');
-      if (w.error) side.appendChild(el('div', 'sub bad', w.error));
-      else if (!w.configured) side.appendChild(el('div', 'sub', 'HOME_LAT / HOME_LON aren’t set.'));
-      else {
-        side.appendChild(el('div', 'title', w.temperature != null ? w.temperature + '°' : '–'));
-        if (w.rain) side.appendChild(el('div', 'sub', w.rain.text));
-      }
-      if (p.error) side.appendChild(el('div', 'sub bad', p.error));
-      (p.items || []).forEach(function (it) {
-        var row = el('div', 'item');
-        var h = el('div', 'head');
-        h.style.color = 'var(--text)';
-        h.appendChild(el('span', null, [it.carrier, it.for ? 'for ' + it.for : null, it.status].filter(Boolean).join(' · ')));
-        if (it.window) h.appendChild(el('span', 'mono', it.window));
-        row.appendChild(h);
-        var steps = el('div', 'steps');
-        for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (it.step || 0) ? 'done' : ''));
-        row.appendChild(steps);
-        side.appendChild(row);
-      });
-      if (p.configured && !(p.items || []).length) side.appendChild(el('div', 'sub', 'No parcels today'));
-      out.push(side);
-      return out;
-    },
-
-    trending: function (d) {
-      if (!d.configured) { var c0 = card('TMDB'); c0.appendChild(el('div', 'title', 'TMDB_API_KEY isn’t set')); return [c0]; }
-      var names = {apple: 'Apple TV+', netflix: 'Netflix', disney: 'Disney+', prime: 'Prime Video', hbo: 'HBO Max', crunchyroll: 'Crunchyroll'};
-      var keys = Object.keys(names).filter(function (k) { return (d.services || {})[k]; });
-      var half = Math.ceil(keys.length / 2);
-      return [keys.slice(0, half), keys.slice(half)].filter(function (g) { return g.length; }).map(function (group, gi) {
-        var c = card(gi === 0 ? 'Number one right now' : null);
-        group.forEach(function (k) {
-          var list = d.services[k];
-          var row = el('div', 'item');
-          var h = el('div', 'head');
-          h.appendChild(el('span', null, names[k]));
-          h.appendChild(el('span', 'mono', list.length + ' titles'));
-          row.appendChild(h);
-          row.appendChild(el('div', 'title', list[0] ? list[0].title : '–'));
-          if (list[1]) row.appendChild(el('div', 'sub', 'then ' + list.slice(1, 3).map(function (t) { return t.title; }).join(', ')));
-          c.appendChild(row);
-        });
-        return c;
-      });
-    },
-
-    photos: function (d) {
-      var c = card('Unsplash', (d.photos || []).length + ' photos', true);
-      if (!d.configured) { c.appendChild(el('div', 'title', 'Unsplash isn’t set up')); return [c]; }
-      var who = {};
-      (d.photos || []).forEach(function (p) { if (p.credit) who[p.credit.name] = true; });
-      var names = Object.keys(who);
-      c.appendChild(el('div', 'title', names.slice(0, 3).join(', ') + (names.length > 3 ? ' and ' + (names.length - 3) + ' more' : '')));
-      var grid = el('div', 'thumbs');
-      (d.photos || []).slice(0, 8).forEach(function (p) {
-        var a = el('a');
-        a.href = p.url; a.target = '_blank'; a.rel = 'noopener';
-        a.style.backgroundImage = 'url("' + p.url.replace(/([?&])w=1920/, '$1w=320').replace(/([?&])h=1080/, '$1h=180') + '")';
-        grid.appendChild(a);
-      });
-      c.appendChild(grid);
-      return [c];
-    },
-
-    inbox: function (d) {
-      var parcels = card('Tracking', (d.parcels || []).length ? String(d.parcels.length) : null);
-      if (!(d.parcels || []).length) parcels.appendChild(el('div', 'title', 'No parcels'));
-      (d.parcels || []).forEach(function (p) {
-        var row = el('div', 'item');
-        row.appendChild(el('div', 'title', (p.shop || p.carrier) + (p.place && p.place !== 'home' ? ' · for ' + p.place : '')));
-        row.appendChild(el('div', 'sub', [p.carrier, (p.status || '').replace(/_/g, ' '), p.expectedDate, p.windowStart && p.windowEnd ? p.windowStart + '–' + p.windowEnd : null].filter(Boolean).join(' · ')));
-        row.appendChild(el('div', 'sub mono', p.code + (p.verified ? '  ✓' : '')));
-        parcels.appendChild(row);
-      });
-      var mails = card('Last emails', (d.emails || []).length ? String(d.emails.length) : null, true);
-      if (!(d.emails || []).length) mails.appendChild(el('div', 'title', 'Nothing yet'));
-      (d.emails || []).forEach(function (m) {
-        var row = el('div', 'item');
-        var h = el('div', 'head');
-        h.appendChild(el('span', null, (m.from || '').replace(/.*<(.+)>.*/, '$1')));
-        h.appendChild(el('span', 'mono', ago(m.at)));
-        row.appendChild(h);
-        row.appendChild(el('div', 'title', m.subject || ''));
-        var r = m.result || '';
-        var res = el('div', 'sub' + (/^error/.test(r) ? ' bad' : ''), r);
-        if (m.link) { res.appendChild(document.createTextNode(' · ')); var a = el('a', null, 'open'); a.href = m.link; a.target = '_blank'; a.rel = 'noopener'; res.appendChild(a); }
-        row.appendChild(res);
-        mails.appendChild(row);
-      });
-      if (d.error) mails.appendChild(el('div', 'sub bad', d.error));
-      return [parcels, mails];
-    },
-
-    inbound: function (d) {
-      var c = card('Result');
-      c.appendChild(el('div', 'title', ({parcel: 'Parcel recorded', ignored: 'Ignored', duplicate: 'Already handled', 'forwarding-confirmation': 'Forwarding confirmation'})[d.result] || d.result || '–'));
-      if (d.reason) c.appendChild(el('div', 'sub', d.reason));
-      (d.parcels || []).forEach(function (p) { c.appendChild(el('div', 'sub mono', p.key + ' · ' + p.status)); });
-      c.appendChild(el('div', 'sub', 'It’s in Inbox too.'));
-      return [c];
-    }
-  };
-  function rawView(d) { var c = card('Answer'); c.appendChild(el('div', 'sub mono', JSON.stringify(d).slice(0, 300))); return [c]; }
-
   /* ================= the raw answer ================= */
   var sheetOpen = false;
   function sheetClosed() { return !sheetOpen; }
@@ -696,18 +532,18 @@
     sheetOpen = true;
   }
   function closeSheet() { $('sheet').classList.remove('open'); $('sheet').setAttribute('aria-hidden', 'true'); sheetOpen = false; }
-  function node(value, key, depth) {
+  function node(value, key, depth, openTo) {
     if (value && typeof value === 'object') {
       var isArr = Array.isArray(value);
       var keys = isArr ? value.map(function (_, i) { return i; }) : Object.keys(value);
       var d = el('details');
-      d.open = depth < 3 && keys.length <= 12 || keys.length <= 3;
+      d.open = openTo != null ? depth < openTo : (depth < 3 && keys.length <= 12 || keys.length <= 3);
       var s = el('summary');
       if (key != null) { s.appendChild(el('span', 'k', String(key))); s.appendChild(el('span', 'p', '  ')); }
       s.appendChild(el('span', 'p', isArr ? '[' : '{'));
       s.appendChild(el('span', 'fold', ' ' + keys.length + (isArr ? ' ]' : ' }')));
       d.appendChild(s);
-      keys.forEach(function (k) { d.appendChild(node(value[k], k, depth + 1)); });
+      keys.forEach(function (k) { d.appendChild(node(value[k], k, depth + 1, openTo)); });
       d.appendChild(el('div', 'p', isArr ? ']' : '}'));
       return d;
     }
