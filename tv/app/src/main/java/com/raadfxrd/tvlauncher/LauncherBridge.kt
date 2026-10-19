@@ -78,13 +78,22 @@ class LauncherBridge(private val activity: Activity) {
         return true
     }
 
-    /** Switches to "HDMI n" by its label as the TV shows it ("HDMI 3"). */
+    /**
+     * Switches to HDMI port [number]. The TV may call that input "HDMI 3", a
+     * name you gave it, or the device it sees on it over HDMI-CEC ("Apple TV").
+     * In that order: the port labelled with its number, then an input with
+     * [name], then the port by position.
+     */
     @JavascriptInterface
-    fun hdmi(number: Int): Boolean {
+    fun hdmi(number: Int, name: String): Boolean {
         val tv = activity.getSystemService(TvInputManager::class.java) ?: return false
         val inputs = tv.tvInputList.filter { it.type == TvInputInfo.TYPE_HDMI }
-        val input = inputs.firstOrNull { Regex("\\b$number\\b").containsMatchIn(it.loadLabel(activity).toString()) }
-            ?: inputs.sortedBy { it.id }.getOrNull(number - 1)
+        val label = { info: TvInputInfo -> info.loadLabel(activity).toString() }
+        val portPattern = Regex("hdmi\\s*$number\\b", RegexOption.IGNORE_CASE)
+        val ports = inputs.filter { it.parentId == null }
+        val input = ports.firstOrNull { portPattern.containsMatchIn(label(it)) }
+            ?: inputs.firstOrNull { name.isNotBlank() && label(it).contains(name, ignoreCase = true) }
+            ?: ports.sortedBy { it.id }.getOrNull(number - 1)
             ?: return false
         val intent = Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(input.id))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
