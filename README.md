@@ -25,12 +25,12 @@ TV itself through `window.TVBridge`, never through the API.
 
 ## API explorer
 
-Open `https://<your-vercel-domain>/docs/` (the bare domain redirects there),
-paste `FEED_TOKEN`, and every endpoint is listed with a health dot and its
-response time. Run any call, see the answer as the TV would show it (cards,
-backdrops, photos, the parcel inbox), as folded JSON, or field by field from
-the schema. The spec itself is `/openapi.json`, so Swagger, Postman or
-Insomnia can import it too.
+Open `https://<your-vercel-domain>/docs/` (the bare domain redirects there).
+It looks like the launcher: your photos full screen, one tile per endpoint,
+the answer in glass cards along the bottom. Paste `FEED_TOKEN` once and every
+tile shows a dot for whether it's up; arrows (or a click) move along the row,
+Enter runs the call again, J opens the raw JSON. The spec is
+`/openapi.json`, so Swagger, Postman or Insomnia can import it too.
 
 ## Setup
 
