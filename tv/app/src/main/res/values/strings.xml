@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ambient</string>
+    <string name="screensaver_name">Ambient</string>
+    <string name="media_listener_name">Ambient now playing</string>
+</resources>

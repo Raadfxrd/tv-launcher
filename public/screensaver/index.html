@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+<title>Screensaver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --text: #F2F2F0;
+    --muted: #B4B4B8;
+    --accent: #7FB2FF;
+    --warn: #FFB547;
+    --glass: rgba(8, 8, 10, 0.62);
+    --line: rgba(255, 255, 255, 0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Geist', system-ui, sans-serif; cursor: none; }
+  .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+
+  /* Photos: two layers that crossfade, each with a slow zoom. */
+  .photo { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; opacity: 0; transform: scale(1); transition: opacity 2.4s ease, transform 60s linear; }
+  .photo.on { opacity: 1; transform: scale(1.06); }
+  .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.45) 40%, rgba(0,0,0,.05) 70%), linear-gradient(to right, rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 45%); transition: opacity 2s ease; }
+
+  /* Everything shifts a few pixels now and then so nothing sits still on the OLED. */
+  .stage { position: absolute; inset: 0; padding: 120px 140px 110px; display: flex; justify-content: space-between; align-items: flex-end; transition: transform 4s ease; }
+  .left { display: flex; flex-direction: column; gap: 18px; text-shadow: 0 2px 24px rgba(0,0,0,.45); }
+  .clock { font-size: 240px; font-weight: 300; letter-spacing: -10px; line-height: .9; font-variant-numeric: tabular-nums; }
+  .date { font-size: 36px; color: #D6D6D2; padding-left: 8px; }
+  .status { display: flex; align-items: center; gap: 32px; font-size: 26px; color: #D6D6D2; padding: 28px 0 0 8px; }
+  .status span { display: flex; align-items: center; gap: 12px; }
+
+  .right { display: flex; flex-direction: column; gap: 24px; width: 760px; }
+  .card { border-radius: 28px; background: var(--glass); -webkit-backdrop-filter: blur(28px); backdrop-filter: blur(28px); border: 1px solid var(--line); padding: 34px 38px; display: flex; flex-direction: column; gap: 22px; }
+  .lite .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 8, 10, .82); }
+  .row { display: flex; align-items: center; gap: 14px; }
+  .between { justify-content: space-between; }
+  .label { font-size: 22px; color: var(--muted); }
+  .title { font-size: 36px; font-weight: 500; letter-spacing: -.5px; }
+  .sub { font-size: 24px; color: var(--muted); }
+  .leave { display: flex; align-items: baseline; gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .leave .sub { white-space: nowrap; }
+  .leave b { white-space: nowrap; font-size: 52px; font-weight: 500; letter-spacing: -1px; color: var(--accent); }
+  .leave.late b, .warn { color: var(--warn); }
+  .legs { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; font-size: 24px; color: var(--muted); }
+  .legs .ride { color: var(--text); }
+  .legs .leg { display: flex; align-items: center; gap: 8px; }
+
+  .feed { padding: 28px 32px; gap: 24px; }
+  .art { width: 92px; height: 92px; flex-shrink: 0; border-radius: 14px; background: #1A1A1E center / cover no-repeat; }
+  .grow { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { flex-grow: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); overflow: hidden; }
+  .bar i { display: block; height: 3px; background: var(--text); }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); }
+  .steps i.done { background: var(--accent); }
+  .divider { height: 1px; background: var(--line); }
+  .credit { position: absolute; top: 48px; right: 132px; padding: 6px 14px; border-radius: 16px; background: rgba(0,0,0,.35); font-size: 18px; color: rgba(255,255,255,.8); transition: opacity 2s ease; }
+  .hidden { display: none !important; }
+
+  /* Night: no photos, no cards except music, dimmed clock that wanders. */
+  .night .photo, .night .shade, .night .credit { opacity: 0 !important; }
+  .night .clock { font-size: 180px; letter-spacing: -8px; color: #7C7C82; text-shadow: none; }
+  .night .date, .night .status { color: #7C7C82; text-shadow: none; }
+  .night .status, .night .nextup { display: none !important; }
+  .night .card { background: transparent; border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; color: #8A8A8F; }
+</style>
+</head>
+<body>
+  <img class="photo" id="photoA" alt="">
+  <img class="photo" id="photoB" alt="">
+  <div class="shade" id="shade"></div>
+  <div class="credit hidden" id="credit"></div>
+
+  <main class="stage" id="stage">
+    <section class="left">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+      <div class="status" id="status"></div>
+    </section>
+    <section class="right">
+      <div class="card nextup hidden" id="nextup"></div>
+      <div class="card feed hidden" id="feed"></div>
+    </section>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  var params = new URLSearchParams(location.search);
+  var TOKEN = params.get('token') || '';
+  var API = params.get('api') || '';                       // defaults to this site
+  var PHOTO_SECONDS = Number(params.get('photoSeconds') || 60);
+  var NIGHT = (params.get('night') || '23-6').split('-').map(Number); // dark between these hours
+  if (params.get('lite') === '1') document.documentElement.classList.add('lite');
+
+  var ICON = {
+    cloud: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 13.5 3.5 3.5 0 0 0 7 19z"/></svg>',
+    rain: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 15a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 9.5 3.5 3.5 0 0 0 7 15z"/><path d="M8 19l-1 2M12 19l-1 2M16 19l-1 2"/></svg>',
+    cal: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    walk: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="1.6"/><path d="M9 21l2-6 3 3v3M14 18l-1-6-3 1-2 3M13 12l2 2 3 1"/></svg>',
+    train: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l-2-4M15 21l2-4"/></svg>',
+    bus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M7 21v-3M17 21v-3"/></svg>',
+    box: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+    note: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6E6E74" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+  };
+
+  /* Small DOM helper: text always goes in as text, never as HTML. */
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function icon(name) { var s = el('span'); s.innerHTML = ICON[name]; s.style.display = 'flex'; return s; }
+  function hhmm(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function minsUntil(iso) { return Math.round((Date.parse(iso) - Date.now()) / 60000); }
+
+  /* ---------- clock, date, night mode, drift ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  function isNight(d) {
+    var h = d.getHours();
+    return NIGHT[0] > NIGHT[1] ? (h >= NIGHT[0] || h < NIGHT[1]) : (h >= NIGHT[0] && h < NIGHT[1]);
+  }
+  function tick() {
+    var now = new Date();
+    $('clock').textContent = hhmm(now);
+    $('date').textContent = now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
+    document.body.classList.toggle('night', isNight(now));
+  }
+  function drift() {
+    var x = Math.round(Math.random() * 40 - 20), y = Math.round(Math.random() * 30 - 15);
+    $('stage').style.transform = 'translate(' + x + 'px,' + y + 'px)';
+  }
+
+  /* ---------- feed ---------- */
+  var feed = null;
+  function api(path) { return (API || '') + path + '?token=' + encodeURIComponent(TOKEN); }
+  function loadFeed() {
+    fetch(api('/api/feed')).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) { if (data) { feed = data; render(); } })
+      .catch(function () { /* keep showing the last good answer */ });
+  }
+
+  function renderStatus() {
+    var box = $('status');
+    box.textContent = '';
+    var w = feed && feed.weather;
+    if (!w || !w.configured || w.error) return;
+    var span = el('span');
+    span.appendChild(icon(w.rain && w.rain.raining ? 'rain' : 'cloud'));
+    var parts = [];
+    if (w.temperature != null) parts.push(w.temperature + '°');
+    if (w.rain) parts.push(w.rain.text);
+    span.appendChild(el('span', null, parts.join(' · ')));
+    box.appendChild(span);
+  }
+
+  function legNode(leg) {
+    var n = el('span', 'leg' + (leg.mode === 'transit' ? ' ride' : ''));
+    if (leg.mode === 'walk') {
+      n.appendChild(icon('walk'));
+      n.appendChild(el('span', null, leg.minutes + ' min'));
+      return n;
+    }
+    n.appendChild(icon(/bus|tram|metro|subway/.test(leg.vehicle) ? 'bus' : 'train'));
+    var text = (leg.line ? leg.line + ' ' : '') + (leg.departure ? hhmm(leg.departure) : '');
+    if (leg.platform) text += ' · Spoor ' + leg.platform;
+    n.appendChild(el('span', null, text));
+    if (leg.cancelled) n.appendChild(el('span', 'warn', 'cancelled'));
+    else if (leg.delayMinutes > 0) n.appendChild(el('span', 'warn', '+' + leg.delayMinutes));
+    return n;
+  }
+
+  function renderNextUp() {
+    var card = $('nextup');
+    var n = feed && feed.nextUp;
+    card.textContent = '';
+    if (!n || !n.event || n.mode === 'none') { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+
+    var head = el('div', 'row between label');
+    var left = el('span', 'row');
+    left.appendChild(icon('cal'));
+    left.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
+    head.appendChild(left);
+    head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
+    card.appendChild(head);
+
+    var what = el('div', 'grow');
+    what.appendChild(el('div', 'title', n.event.title));
+    var where = n.event.location;
+    if (n.destination && !n.destination.travel) where = {home: 'At home', online: 'Online', 'no-location': null}[n.destination.reason] || where;
+    if (where) what.appendChild(el('div', 'sub', where));
+    card.appendChild(what);
+
+    var trip = n.trip;
+    if (!trip || !trip.configured) return;
+    if (trip.error) { card.appendChild(el('div', 'sub', 'No route: ' + trip.error)); return; }
+    var mins = minsUntil(trip.leaveAt);
+    var leave = el('div', 'leave' + (trip.disrupted || (n.mode === 'live' && mins <= 0) ? ' late' : ''));
+    if (n.mode === 'preview') {
+      leave.appendChild(el('b', null, 'Leave ' + hhmm(trip.leaveAt)));
+      leave.appendChild(el('span', 'sub', trip.durationMinutes + ' min trip'));
+    } else {
+      leave.appendChild(el('b', null, mins <= 0 ? 'Leave now' : 'Leave ' + hhmm(trip.leaveAt)));
+      leave.appendChild(el('span', 'sub', (mins > 0 ? 'in ' + mins + ' min · ' : '') + trip.durationMinutes + ' min trip'));
+    }
+    card.appendChild(leave);
+    var legs = el('div', 'legs');
+    trip.legs.forEach(function (leg, i) {
+      if (i) legs.appendChild(el('span', null, '→'));
+      legs.appendChild(legNode(leg));
+    });
+    card.appendChild(legs);
+  }
+
+  /* ---------- music (from the TV app) + packages ---------- */
+  var music = null;
+  function readMusic() {
+    try {
+      var raw = window.TVBridge && window.TVBridge.nowPlaying();
+      music = raw ? JSON.parse(raw) : null;
+    } catch (e) { music = null; }
+    if (music && !music.playing) music = null;
+  }
+  function fmt(ms) { var s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + pad(s % 60); }
+
+  function renderFeed() {
+    var card = $('feed');
+    card.textContent = '';
+    var pkgs = (feed && feed.packages && feed.packages.items) || [];
+    if (!music && !pkgs.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+
+    if (music) {
+      var row = el('div', 'row');
+      row.style.gap = '24px';
+      var art = el('div', 'art');
+      if (music.art) art.style.backgroundImage = 'url("' + music.art + '")';
+      else { art.innerHTML = ICON.note; art.style.display = 'flex'; art.style.alignItems = 'center'; art.style.justifyContent = 'center'; }
+      row.appendChild(art);
+      var info = el('div', 'grow');
+      var t = el('div', 'ellipsis', music.title || '');
+      t.style.fontSize = '28px'; t.style.fontWeight = '500';
+      info.appendChild(t);
+      info.appendChild(el('div', 'sub ellipsis', [music.artist, music.app].filter(Boolean).join(' · ')));
+      if (music.durationMs > 0) {
+        var prog = el('div', 'row mono');
+        prog.style.cssText = 'gap:12px;padding-top:8px;font-size:16px;color:var(--muted)';
+        prog.appendChild(el('span', null, fmt(music.positionMs)));
+        var bar = el('span', 'bar'); var fill = el('i');
+        fill.style.width = Math.min(100, 100 * music.positionMs / music.durationMs) + '%';
+        bar.appendChild(fill); prog.appendChild(bar);
+        prog.appendChild(el('span', null, fmt(music.durationMs)));
+        info.appendChild(prog);
+      }
+      row.appendChild(info);
+      card.appendChild(row);
+    }
+    if (music && pkgs.length) card.appendChild(el('div', 'divider'));
+    pkgs.forEach(function (p) {
+      var row = el('div', 'row');
+      row.style.gap = '24px';
+      var ic = el('div', 'row label'); ic.style.cssText += ';width:92px;justify-content:center'; ic.appendChild(icon('box'));
+      row.appendChild(ic);
+      var info = el('div', 'grow');
+      var top = el('div', 'row between'); top.style.fontSize = '24px';
+      top.appendChild(el('span', null, p.carrier + (p.status ? ' · ' + p.status : '')));
+      if (p.window) top.appendChild(el('span', 'mono', p.window));
+      info.appendChild(top);
+      var steps = el('div', 'steps');
+      for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (p.step || 0) ? 'done' : ''));
+      info.appendChild(steps);
+      row.appendChild(info);
+      card.appendChild(row);
+    });
+  }
+
+  function render() { renderStatus(); renderNextUp(); renderFeed(); }
+
+  /* ---------- photos ---------- */
+  var photos = [], index = -1, front = $('photoA'), back = $('photoB');
+  function loadPhotos() {
+    fetch(api('/api/photos')).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.photos || !data.photos.length) return;
+        photos = shuffle(data.photos);
+        if (index < 0) nextPhoto();
+      }).catch(function () {});
+  }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function nextPhoto() {
+    if (!photos.length || document.body.classList.contains('night')) return;
+    index = (index + 1) % photos.length;
+    var p = photos[index];
+    var img = new Image();
+    img.onload = function () {           // swap only once the next photo is ready
+      back.src = p.url; back.alt = p.alt || '';
+      back.classList.add('on'); front.classList.remove('on');
+      var t = front; front = back; back = t;
+      var c = $('credit');
+      c.textContent = 'Photo by ' + p.credit.name + ' · Unsplash';
+      c.classList.remove('hidden');
+    };
+    img.src = p.url;
+  }
+
+  /* ---------- start ---------- */
+  tick(); setInterval(tick, 1000);
+  drift(); setInterval(drift, 120000);
+  readMusic(); setInterval(function () { readMusic(); renderFeed(); }, 2000);
+  loadFeed(); setInterval(loadFeed, 90000);
+  setInterval(renderNextUp, 30000);   // keeps "in N min" honest between fetches
+  loadPhotos(); setInterval(loadPhotos, 3600000);
+  setInterval(nextPhoto, PHOTO_SECONDS * 1000);
+})();
+</script>
+</body>
+</html>

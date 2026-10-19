@@ -1,0 +1,51 @@
+name: TV app
+
+# Builds the Android TV APK. Every push that touches tv/ produces an APK as a
+# workflow artifact; pushing a tag like v0.1.0 also attaches it to a release.
+on:
+  push:
+    branches: [main]
+    paths: ["tv/**", ".github/workflows/tv-app.yml"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build APK
+        working-directory: tv
+        env:
+          FEED_BASE: ${{ secrets.FEED_BASE }}
+          FEED_TOKEN: ${{ secrets.FEED_TOKEN }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: Name the APK
+        run: cp tv/app/build/outputs/apk/release/app-release.apk ambient-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ambient-apk
+          path: ambient-${{ github.run_number }}.apk
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ambient-${{ github.run_number }}.apk

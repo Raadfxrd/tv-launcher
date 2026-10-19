@@ -1,0 +1,17 @@
+{
+  "name": "tv-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feed API and screensaver for a custom Android TV launcher (Sony Bravia A1).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "node-ical": "^0.27.3",
+    "tsdav": "^2.5.0"
+  }
+}
