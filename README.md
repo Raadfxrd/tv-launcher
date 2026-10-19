@@ -33,10 +33,9 @@ TV itself through `window.TVBridge`, never through the API.
 3. Generate `FEED_TOKEN` with `openssl rand -hex 24`.
 4. Check it: `https://<domain>/api/feed?token=<FEED_TOKEN>`.
 
-Keys you need: an **Apple Maps** key (Apple Developer account: a Maps ID and
-private key) to find event addresses, an **NS API** key for the door-to-door
-route with live delays, and an **Unsplash** access key plus collection id for
-photos.
+Keys you need: a **Google Maps** key with the Geocoding API enabled to find
+event addresses, an **NS API** key for the door-to-door route with live
+delays, and an **Unsplash** access key plus collection id for photos.
 
 ### 2. GitHub secrets (for the APK)
 
@@ -78,11 +77,10 @@ right away (OK reloads it), handy while tweaking the design.
   work-from-home days.
 - Online meetings show the event without travel; `NO_TRAVEL_CARD=hide` skips
   them instead.
-- Addresses are found with Apple Maps; the route comes from the NS journey
+- Addresses are found with Google; the route comes from the NS journey
   planner (trains, buses, trams, metros, walks) with live delays, platform
   changes and cancellations; the card turns amber when that happens. Without
-  an NS key the card shows Apple Maps' travel time and when to leave, but no
-  legs.
+  an NS key, Google's Routes API plans the trip instead, without live delays.
 
 ## Parcels
 

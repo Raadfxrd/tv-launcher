@@ -1,9 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {parseRainText, summariseRain} = require('../lib/weather');
-const crypto = require('node:crypto');
 const {parseNsTrip, chooseTrip} = require('../lib/travel');
-const {signAuthToken} = require('../lib/apple');
+const {parseRoute} = require('../lib/google');
 const {eventsFrom} = require('../lib/calendar');
 const {sized} = require('../lib/photos');
 const {authorised} = require('../lib/http');
@@ -57,16 +56,22 @@ test('NS trip choice: the last one that still arrives in time', () => {
 	assert.equal(chosen, trips[1]);
 });
 
-test('Apple Maps auth token is a valid ES256 JWT', () => {
-	const {privateKey, publicKey} = crypto.generateKeyPairSync('ec', {namedCurve: 'P-256'});
-	const env = {APPLE_MAPS_TEAM_ID: 'TEAM123456', APPLE_MAPS_KEY_ID: 'KEY1234567', APPLE_MAPS_PRIVATE_KEY: privateKey.export({type: 'pkcs8', format: 'pem'}).replace(/\n/g, '\\n')};
-	const jwt = signAuthToken(env, 1000);
-	const [h, p, sig] = jwt.split('.');
-	const dec = (x) => JSON.parse(Buffer.from(x.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
-	assert.deepEqual(dec(h), {alg: 'ES256', kid: 'KEY1234567', typ: 'JWT'});
-	assert.deepEqual(dec(p), {iss: 'TEAM123456', iat: 1000, exp: 2800, scope: 'server_api'});
-	const ok = crypto.verify('sha256', Buffer.from(`${h}.${p}`), {key: publicKey, dsaEncoding: 'ieee-p1363'}, Buffer.from(sig.replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
-	assert.equal(ok, true);
+test('Google route: walks merged, ride details kept', () => {
+	const legs = parseRoute({
+		legs: [{steps: [
+			{travelMode: 'WALK', staticDuration: '120s'},
+			{travelMode: 'WALK', staticDuration: '250s'},
+			{travelMode: 'TRANSIT', transitDetails: {
+				stopDetails: {departureStop: {name: 'Amsterdam Lelylaan'}, arrivalStop: {name: 'Haarlem'}, departureTime: '2026-10-19T06:23:00Z'},
+				transitLine: {nameShort: 'SPR', vehicle: {type: 'HEAVY_RAIL'}},
+			}},
+			{travelMode: 'WALK', staticDuration: '540s'},
+		]}],
+	});
+	assert.equal(legs.length, 3);
+	assert.deepEqual(legs[0], {mode: 'walk', minutes: 6});
+	assert.equal(legs[1].vehicle, 'train');
+	assert.deepEqual(legs[2], {mode: 'walk', minutes: 9});
 });
 
 test('ics: repeating event expanded, cancelled and online handled', () => {
