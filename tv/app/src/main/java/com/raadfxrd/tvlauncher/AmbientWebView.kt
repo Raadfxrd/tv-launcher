@@ -29,8 +29,8 @@ object AmbientWebView {
         settings.domStorageEnabled = true
         // The page is laid out at 1920×1080; scale it to whatever the TV's
         // WebView reports (often 960×540 at 2× density).
-        settings.useWideViewPort = true
-        settings.loadWithOverviewMode = true
+        settings.useWideViewPort = false
+        settings.loadWithOverviewMode = false   // the page fits itself (see its fit script)
         settings.setSupportZoom(false)
         webViewClient = WebViewClient()
         addJavascriptInterface(NowPlaying(context.applicationContext), "TVBridge")

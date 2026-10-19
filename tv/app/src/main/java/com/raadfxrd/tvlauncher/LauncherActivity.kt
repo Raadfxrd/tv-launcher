@@ -38,8 +38,8 @@ class LauncherActivity : Activity() {
             setBackgroundColor(Color.BLACK)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = false
+            settings.loadWithOverviewMode = false   // the page fits itself (see its fit script)
             settings.setSupportZoom(false)
             settings.allowFileAccess = true
             webViewClient = WebViewClient()
