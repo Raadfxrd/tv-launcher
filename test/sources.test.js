@@ -49,6 +49,17 @@ test('NS trip: walks merged, ride details, delay and platform kept', () => {
 	assert.equal(legs[2].minutes, 9);
 });
 
+test('NS bus and tram legs show their line number', () => {
+	const legs = parseNsTrip({legs: [{
+		travelType: 'PUBLIC_TRANSIT',
+		product: {type: 'BUS', displayName: 'Bus', lineNumber: '15'},
+		origin: {name: 'Anna Blamansingel', plannedDateTime: '2026-10-19T08:10:00+0200'},
+		destination: {plannedDateTime: '2026-10-19T08:18:00+0200'},
+	}]});
+	assert.equal(legs[0].line, 'Bus 15');
+	assert.equal(legs[0].vehicle, 'bus');
+});
+
 test('NS trip choice: the last one that still arrives in time', () => {
 	const t = (arr, status = 'NORMAL') => ({status, legs: [{destination: {plannedDateTime: arr}}]});
 	const trips = [t('2026-10-19T08:40:00+0200'), t('2026-10-19T08:50:00+0200'), t('2026-10-19T08:54:00+0200', 'CANCELLED'), t('2026-10-19T09:05:00+0200')];
