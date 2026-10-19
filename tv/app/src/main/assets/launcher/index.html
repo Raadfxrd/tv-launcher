@@ -13,19 +13,46 @@
   @font-face { font-family: 'Iosevka Aile'; font-weight: 500; src: url('fonts/iosevka-aile-latin-500-normal.woff2') format('woff2'); }
 
   :root {
-    --text: #F2F2F0;
-    --muted: #8E8E93;
-    --line: #1F1F23;
-    --card: #0C0C0E;
-    --accent: #7FB2FF;
+    --text: #FFFFFF;
+    --muted: rgba(255, 255, 255, 0.72);   /* vibrancy: white at strength, not flat grey, over colour */
+    --line: rgba(255, 255, 255, 0.12);
+    /* Glass, as in home-dashboard: a faint fill over whatever is behind,
+       blurred and saturated, with a hairline edge and light catching the top.
+       A touch darker than the dashboard's, because this sits on colour. */
+    --glass-fill: rgba(28, 26, 40, 0.30);
+    --glass-edge: rgba(255, 255, 255, 0.11);
+    --glass-blur: blur(28px) saturate(170%);
+    --accent: #A9CBFF;
     --warn: #FFB547;
     --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped feel: no overshoot */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #6E6488; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
   .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
-  .page { padding: 64px 112px 56px; height: 1080px; display: flex; flex-direction: column; gap: 44px; }
+  /* ---------- background ----------
+     Soft light pooled in the corners, like the Home app: rose top left,
+     amber top right, blue on the left, violet bottom right. It holds still, so
+     the frosted cards blur it once instead of every frame (the A1's GPU
+     thanks us), and a whisper of grain keeps the gradient from banding. */
+  .bg { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
+        background:
+          radial-gradient(55% 60% at 10% 4%, #C66C8D 0%, rgba(198,108,141,0) 72%),
+          radial-gradient(50% 55% at 92% 16%, #C98A52 0%, rgba(201,138,82,0) 70%),
+          radial-gradient(55% 60% at 4% 66%, #4E7DB8 0%, rgba(78,125,184,0) 72%),
+          radial-gradient(60% 60% at 90% 84%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
+          radial-gradient(70% 65% at 48% 104%, #5B62AA 0%, rgba(91,98,170,0) 75%),
+          #6C6589; }
+  .bg::after { content: ''; position: absolute; inset: 0;
+        background:
+          linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.28) 100%),
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
+
+  .glass { background: var(--glass-fill); box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.08);
+           -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(28, 26, 40, 0.55); }
+
+  .page { position: relative; z-index: 1; padding: 64px 112px 56px; height: 1080px; display: flex; flex-direction: column; gap: 44px; }
 
   /* ---------- header ---------- */
   header { display: flex; justify-content: space-between; align-items: flex-end; }
@@ -40,9 +67,10 @@
   .viewport { margin: -24px -112px; padding: 24px 112px; overflow: hidden; }   /* room for the focus ring and scale */
   .track { display: flex; gap: 24px; transition: transform 0.45s var(--settle); will-change: transform; }
 
-  .tile { position: relative; flex-shrink: 0; width: 256px; height: 144px; border-radius: 18px; background: #111113 center / cover no-repeat; border: 1px solid var(--line);
-          transition: transform 0.32s var(--settle), box-shadow 0.32s var(--settle), opacity 0.32s ease; opacity: 0.72; }
-  .tile.small { width: 208px; height: 117px; border-radius: 14px; }
+  .tile { position: relative; flex-shrink: 0; width: 256px; height: 144px; border-radius: 22px; background: center / cover no-repeat;
+          transition: transform 0.32s var(--settle), box-shadow 0.32s var(--settle), opacity 0.32s ease; opacity: 0.8; }
+  .tile.banner { box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+  .tile.small { width: 208px; height: 117px; border-radius: 18px; }
   .tile .name { position: absolute; left: 20px; bottom: 16px; right: 20px; font-size: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile.small .name { font-size: 20px; left: 16px; bottom: 12px; }
   .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
@@ -51,7 +79,7 @@
   .tile.banner .name { display: none; }
   /* Focus: the tile lifts toward you; the ring is light catching its edge. */
   .row.active .tile.focused { opacity: 1; transform: scale(1.1); box-shadow: 0 0 0 3px var(--text), 0 24px 60px rgba(0,0,0,.6); }
-  .row:not(.active) .tile { opacity: 0.55; }
+  .row:not(.active) .tile { opacity: 0.62; }
   /* Pressing OK answers immediately, before anything opens. */
   .row.active .tile.focused.pressed { transform: scale(1.04); transition-duration: 0.09s; }
   /* The name rides along under the focused tile. */
@@ -61,7 +89,7 @@
   /* ---------- now: next up, music, parcels ---------- */
   .now { display: flex; gap: 24px; min-height: 0; transition: opacity 0.4s ease; }
   .now:empty { display: none; }
-  .card { border-radius: 22px; background: var(--card); border: 1px solid var(--line); padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation: rise 0.6s var(--settle); }
+  .card { border-radius: 26px; padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation: rise 0.6s var(--settle); }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   .card .head { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); }
   .card .title { font-size: 30px; font-weight: 500; letter-spacing: -0.01em; }
@@ -69,16 +97,16 @@
   .card .leave { font-size: 26px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
   .card .leave b { font-family: 'Iosevka', monospace; font-weight: 500; color: var(--accent); }
   .card .leave.late b, .warn { color: var(--warn); }
-  .card .art { width: 72px; height: 72px; border-radius: 12px; background: #1A1A1E center / cover no-repeat; flex-shrink: 0; }
+  .card .art { width: 72px; height: 72px; border-radius: 12px; background: rgba(0,0,0,0.25) center / cover no-repeat; flex-shrink: 0; }
   .card .media { display: flex; gap: 20px; align-items: center; }
   .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); }
+  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.22); }
   .steps i.done { background: var(--accent); }
 
   /* ---------- bottom ---------- */
   .chips { margin-top: auto; }
   .chips .track { gap: 14px; }
-  .chip { flex-shrink: 0; font-size: 22px; color: var(--muted); padding: 14px 26px; border-radius: 30px; border: 1px solid var(--line); transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
+  .chip { flex-shrink: 0; font-size: 22px; color: var(--text); padding: 14px 26px; border-radius: 30px; transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
   .row.active .chip.focused { background: var(--text); color: #000; transform: scale(1.06); }
   .row.active .chip.focused.pressed { transform: scale(1.0); }
 
@@ -86,6 +114,7 @@
 </style>
 </head>
 <body>
+<div class="bg" aria-hidden="true"></div>
 <div class="page">
   <header>
     <div class="when"><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
@@ -132,6 +161,7 @@
   var API = (params.get('api') || '').replace(/\/$/, '');
   var TOKEN = params.get('token') || '';
   var bridge = window.TVBridge || null;
+  if (params.get('lite') === '1') document.documentElement.classList.add('lite');
 
   var $ = function (id) { return document.getElementById(id); };
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
@@ -162,7 +192,7 @@
   }
 
   function appTile(app, small) {
-    var node = el('div', 'tile' + (small ? ' small' : '') + (app.banner ? ' banner' : ''));
+    var node = el('div', 'tile' + (small ? ' small' : '') + (app.banner ? ' banner' : ' glass'));
     if (app.banner) node.style.backgroundImage = 'url("' + app.banner + '")';
     node.appendChild(el('div', 'name', app.label));
     return {node: node, label: app.label, action: {type: 'app', pkg: app.pkg}};
@@ -171,7 +201,7 @@
   /* A device on an HDMI input, shown by its own name ("Apple TV") with the
      port underneath so it's clear what it switches to. */
   function hdmiTile(n, label) {
-    var node = el('div', 'tile text');
+    var node = el('div', 'tile text glass');
     var top = el('div', 'port', 'HDMI ' + n);
     node.appendChild(top);
     node.appendChild(el('div', 'name', label));
@@ -179,7 +209,7 @@
   }
 
   function chip(label, action) {
-    return {node: el('div', 'chip', label), label: label, action: action};
+    return {node: el('div', 'chip glass', label), label: label, action: action};
   }
 
   function buildRows(apps) {
@@ -324,7 +354,7 @@
     box.textContent = '';
 
     if (n && n.event && n.mode !== 'none') {
-      var c = el('div', 'card');
+      var c = el('div', 'card glass');
       c.style.width = '760px';
       var head = el('div', 'head');
       head.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
@@ -347,7 +377,7 @@
     }
 
     if (music || parcels.length) {
-      var f = el('div', 'card');
+      var f = el('div', 'card glass');
       f.style.width = '640px';
       if (music) {
         var m = el('div', 'media');
