@@ -210,7 +210,7 @@
     {label: 'Netflix', pkgs: ['com.netflix.ninja'], names: ['netflix'], shelf: 'netflix'},
     {label: 'Disney+', pkgs: ['com.disney.disneyplus'], names: ['disney+', 'disney plus'], shelf: 'disney'},
     {label: 'Prime Video', pkgs: ['com.amazon.amazonvideo.livingroom'], names: ['prime video', 'amazon prime video'], shelf: 'prime'},
-    {label: 'HBO Max', pkgs: ['com.wbd.stream', 'com.hbo.hbonow'], names: ['hbo max', 'max'], shelf: 'hbo'}
+    {label: 'HBO Max', pkgs: ['com.wbd.hbomax', 'com.wbd.stream', 'com.hbo.hbonow'], names: ['hbo max', 'max'], shelf: 'hbo'}
   ];
 
   var params = new URLSearchParams(location.search);
@@ -560,6 +560,7 @@
       c.appendChild(el('div', 'title', n.event.title));
       if (n.event.location) c.appendChild(el('div', 'sub', n.event.location));
       var t = n.trip;
+      if (t && t.error) c.appendChild(el('div', 'sub', 'No route yet: the address couldn\u2019t be found'));
       if (t && t.configured && !t.error && t.leaveAt) {
         var leave = el('div', 'leave' + (t.disrupted ? ' late' : ''));
         leave.appendChild(el('b', null, 'Leave ' + hhmm(t.leaveAt)));
