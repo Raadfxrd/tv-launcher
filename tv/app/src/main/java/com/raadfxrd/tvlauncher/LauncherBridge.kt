@@ -101,6 +101,43 @@ class LauncherBridge(private val activity: Activity) {
         return true
     }
 
+    /**
+     * The HDMI inputs with something connected, as JSON: one entry per port,
+     * named after the device on it when the TV knows it over HDMI-CEC
+     * ("PlayStation 5"), otherwise the port's own label. Ports that are
+     * disconnected are left out, so the home screen never shows dead inputs.
+     */
+    @JavascriptInterface
+    fun inputs(): String {
+        val tv = activity.getSystemService(TvInputManager::class.java) ?: return "[]"
+        val all = tv.tvInputList.filter { it.type == TvInputInfo.TYPE_HDMI }
+        val label = { info: TvInputInfo -> info.loadLabel(activity).toString() }
+        val ports = all.filter { it.parentId == null }.sortedBy { it.id }
+        val out = JSONArray()
+        ports.forEachIndexed { index, port ->
+            val state = runCatching { tv.getInputState(port.id) }.getOrDefault(TvInputManager.INPUT_STATE_CONNECTED)
+            if (state == TvInputManager.INPUT_STATE_DISCONNECTED) return@forEachIndexed
+            val device = all.firstOrNull { it.parentId == port.id }
+            val number = Regex("(\\d+)").find(label(port))?.value?.toIntOrNull() ?: (index + 1)
+            out.put(
+                JSONObject()
+                    .put("id", (device ?: port).id)
+                    .put("number", number)
+                    .put("name", device?.let(label) ?: label(port))
+                    .put("standby", state == TvInputManager.INPUT_STATE_CONNECTED_STANDBY)
+            )
+        }
+        return out.toString()
+    }
+
+    @JavascriptInterface
+    fun openInput(id: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(id))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        activity.runOnUiThread { runCatching { activity.startActivity(intent) } }
+        return true
+    }
+
     @JavascriptInterface
     fun openSettings() {
         activity.runOnUiThread { activity.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

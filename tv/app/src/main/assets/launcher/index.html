@@ -70,6 +70,35 @@
   .date { font-size: 32px; color: var(--muted); padding-left: 6px; }
   .status { display: flex; align-items: center; gap: 12px; font-size: 26px; color: var(--muted); padding: 18px 0 0 6px; }
 
+  /* The gear for Settings sits at the end of the weather line: reachable with
+     up, without a row of its own. */
+  .gear { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 26px; margin-left: 10px; color: var(--text);
+          transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
+  .row.active .gear.focused { background: #fff; color: #1a1630; transform: scale(1.1); box-shadow: var(--lift-2); }
+  .row.active .gear.focused.pressed { transform: scale(1.0); }
+
+  .top { transition: opacity 0.5s ease, transform 0.6s var(--settle); }
+  body.shelf-on .top { opacity: 0; transform: translateY(-14px); }
+
+  /* ---------- top shelf ----------
+     Rest on a streaming app and the top of the screen becomes what's popular
+     there right now: big backdrops crossfading with a slow zoom, the title in
+     the corner, fading into the background toward the app row. */
+  .shelf { position: fixed; top: 0; left: 0; width: 1920px; height: 700px; z-index: 0; opacity: 0; transition: opacity 0.9s ease;
+           -webkit-mask-image: linear-gradient(to bottom, #000 52%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, #000 52%, rgba(0,0,0,0) 100%); }
+  body.shelf-on .shelf { opacity: 1; }
+  .shelf img { position: absolute; top: 0; left: 0; width: 1920px; height: 700px; object-fit: cover; object-position: 50% 22%; opacity: 0; transform: scale(1);
+               transition: opacity 1.4s ease, transform 10s linear; will-change: opacity, transform; }
+  .shelf img.on { opacity: 1; transform: scale(1.05); }
+  .shelf-shade { position: absolute; inset: 0;
+                 background: linear-gradient(90deg, rgba(14,10,32,0.72) 0%, rgba(14,10,32,0.25) 45%, rgba(14,10,32,0) 70%),
+                             linear-gradient(0deg, rgba(14,10,32,0.55) 0%, rgba(14,10,32,0) 45%); }
+  .shelf-text { position: absolute; left: 112px; top: 250px; width: 900px; display: flex; flex-direction: column; gap: 10px; transition: opacity 0.5s ease; }
+  .shelf-text.swap { opacity: 0; }
+  .shelf-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .shelf-title { font-size: 68px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.02; text-shadow: 0 2px 30px rgba(0,0,0,0.35); }
+  .shelf-meta { font-size: 24px; color: var(--muted); }
+
   .now { width: 720px; display: flex; flex-direction: column; gap: 20px; }
   .card { border-radius: 28px; padding: 26px 30px; display: flex; flex-direction: column; gap: 12px; animation: rise 0.7s var(--settle) both; }
   .card + .card { animation-delay: 0.06s; }
@@ -126,18 +155,11 @@
 
   #row-apps { margin-top: 24px; height: 230px; }
   #row-apps .caption { top: 186px; }
-  #row-all { height: 216px; }
+  #row-all { height: 216px; margin-top: 18px; }
   #row-all .caption { top: 176px; }
 
-  .chips { position: absolute; left: 112px; bottom: 52px; }
-  .chips .viewport { margin: -20px -112px; padding: 20px 112px; }
-  .chips .track { gap: 14px; }
-  .chip { flex-shrink: 0; font-size: 22px; padding: 14px 26px; border-radius: 30px; transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
-  .row.active .chip.focused { background: #fff; color: #1a1630; transform: scale(1.06); }
-  .row.active .chip.focused.pressed { transform: scale(1.0); }
-
   @media (prefers-reduced-motion: reduce) {
-    .track, .tile, .chip, .caption, .glow { transition-duration: 0.01s !important; }
+    .track, .tile, .gear, .caption, .glow, .shelf, .shelf img, .top { transition-duration: 0.01s !important; }
     .card { animation: none; } .tile::after { display: none; }
   }
 </style>
@@ -146,6 +168,11 @@
 <div class="bg" aria-hidden="true"></div>
 <div class="glow" id="glowA" aria-hidden="true"></div>
 <div class="glow" id="glowB" aria-hidden="true"></div>
+<div class="shelf" id="shelf" aria-hidden="true">
+  <img id="shelfA" alt=""><img id="shelfB" alt="">
+  <div class="shelf-shade"></div>
+  <div class="shelf-text" id="shelfText"><div class="shelf-label" id="shelfLabel"></div><div class="shelf-title" id="shelfTitle"></div><div class="shelf-meta" id="shelfMeta"></div></div>
+</div>
 <div class="grain" aria-hidden="true"></div>
 
 <div class="page">
@@ -154,7 +181,7 @@
       <div class="greeting" id="greeting"></div>
       <div class="clock" id="clock" aria-label="Time"></div>
       <div class="date" id="date"></div>
-      <div class="status" id="status"></div>
+      <div class="row" id="row-top"><div class="status"><span id="status"></span><span class="gear glass" id="gear" aria-label="Settings"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div></div>
     </div>
     <div class="now" id="now" aria-label="Now"></div>
   </section>
@@ -170,9 +197,6 @@
     <div class="caption"></div>
   </section>
 
-  <section class="row chips" id="row-chips">
-    <div class="viewport"><div class="track"></div></div>
-  </section>
 </div>
 
 <script>
@@ -182,16 +206,17 @@
   /* ================= what goes on the home screen =================
      The first row, in this order. Apps are found by package first, then by
      the name the TV shows; ones that aren't installed are simply left out.
-     `color` is the glow for tiles without a banner to take a colour from. */
+     `color` is the glow for tiles without a banner to take a colour from;
+     `shelf` is which service's trending titles the top shelf shows. */
   var PINNED = [
-    {hdmi: 3, label: 'Apple TV', color: [150, 150, 170]},     // the Apple TV, on HDMI 3
+    {hdmi: 3, label: 'Apple TV', color: [150, 150, 170], shelf: 'apple', shelfName: 'Apple TV+'},     // the Apple TV, on HDMI 3
     {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
     {label: 'Tidal', pkgs: ['com.aspiro.tidal'], names: ['tidal']},
-    {label: 'Crunchyroll', pkgs: ['com.crunchyroll.crunchyroid'], names: ['crunchyroll']},
-    {label: 'Netflix', pkgs: ['com.netflix.ninja'], names: ['netflix']},
-    {label: 'Disney+', pkgs: ['com.disney.disneyplus'], names: ['disney+', 'disney plus']},
-    {label: 'Prime Video', pkgs: ['com.amazon.amazonvideo.livingroom'], names: ['prime video', 'amazon prime video']},
-    {label: 'HBO Max', pkgs: ['com.wbd.stream', 'com.hbo.hbonow'], names: ['hbo max', 'max']}
+    {label: 'Crunchyroll', pkgs: ['com.crunchyroll.crunchyroid'], names: ['crunchyroll'], shelf: 'crunchyroll'},
+    {label: 'Netflix', pkgs: ['com.netflix.ninja'], names: ['netflix'], shelf: 'netflix'},
+    {label: 'Disney+', pkgs: ['com.disney.disneyplus'], names: ['disney+', 'disney plus'], shelf: 'disney'},
+    {label: 'Prime Video', pkgs: ['com.amazon.amazonvideo.livingroom'], names: ['prime video', 'amazon prime video'], shelf: 'prime'},
+    {label: 'HBO Max', pkgs: ['com.wbd.stream', 'com.hbo.hbonow'], names: ['hbo max', 'max'], shelf: 'hbo'}
   ];
 
   var params = new URLSearchParams(location.search);
@@ -273,7 +298,7 @@
     // Wait until the remote rests on a tile: holding right doesn't strobe colours.
     glowTimer = setTimeout(function () {
       var r = rows[current], it = r && r.items[r.index];
-      if (!it || r.kind === 'chips') return glowTo(null);
+      if (!it || r.kind === 'header') return glowTo(null);
       if (it.color) return glowTo(it.color);
       if (it.banner) bannerColor(it.banner, function (c) { if (rows[current] && rows[current].items[rows[current].index] === it) glowTo(c); });
       else glowTo(null);
@@ -304,36 +329,52 @@
 
   /* A device on an HDMI input, shown by its own name ("Apple TV") with the
      port above it so it's clear what it switches to. */
-  function hdmiTile(n, label, color) {
+  function hdmiTile(n, label, color, action) {
     var node = el('div', 'tile text glass');
     node.appendChild(el('div', 'port', 'HDMI ' + n));
     node.appendChild(el('div', 'name', label));
-    return {node: node, label: label, color: color, action: {type: 'hdmi', n: n, name: label}};
+    return {node: node, label: label, color: color, action: action || {type: 'hdmi', n: n, name: label}};
   }
 
-  function chip(label, action) {
-    return {node: el('div', 'chip glass', label), label: label, action: action};
-  }
 
-  function buildRows(apps) {
+  /* Up from the apps: the gear at the end of the weather line. */
+  var gearItem = {node: $('gear'), label: 'Settings', action: {type: 'settings'}};
+  function headerRow() { return {el: $('row-top'), kind: 'header', track: null, items: [gearItem], index: 0, caption: null}; }
+
+  function buildRows(apps, inputs) {
     var used = {};
     var pinned = [];
-    PINNED.forEach(function (p) {
-      if (p.hdmi) { pinned.push(hdmiTile(p.hdmi, p.label, p.color)); return; }
+    var pinnedPorts = PINNED.filter(function (p) { return p.hdmi; }).map(function (p) { return p.hdmi; });
+    PINNED.forEach(function (p, i) {
+      if (p.hdmi) {
+        var tile = hdmiTile(p.hdmi, p.label, p.color);
+        tile.shelf = p.shelf; tile.shelfName = p.shelfName;
+        pinned.push(tile);
+        // Right after the pinned device: whatever else is plugged in and on,
+        // named after the device itself. Nothing connected, no tile.
+        if (i === 0) inputs.forEach(function (inp) {
+          if (pinnedPorts.indexOf(inp.number) >= 0) return;
+          pinned.push(hdmiTile(inp.number, inp.name, [140, 150, 175], {type: 'input', id: inp.id}));
+        });
+        return;
+      }
       var app = apps.filter(function (a) { return p.pkgs.indexOf(a.pkg) >= 0; })[0] ||
         apps.filter(function (a) { return p.names.indexOf(a.label.toLowerCase()) >= 0; })[0];
-      if (app && !used[app.pkg]) { used[app.pkg] = true; pinned.push(appTile(app, false)); }
+      if (app && !used[app.pkg]) {
+        used[app.pkg] = true;
+        var t = appTile(app, false);
+        t.shelf = p.shelf; t.shelfName = p.label;
+        pinned.push(t);
+      }
     });
     var rest = apps.filter(function (a) { return !used[a.pkg]; }).map(function (a) { return appTile(a, true); });
 
     var keep = rows.map(function (r) { return r.index; });
-    rows = [
-      makeRow('row-apps', 'apps', pinned),
-      makeRow('row-all', 'all', rest),
-      makeRow('row-chips', 'chips', [chip('HDMI 1', {type: 'hdmi', n: 1}), chip('HDMI 2', {type: 'hdmi', n: 2}), chip('Settings', {type: 'settings'})])
-    ].filter(function (r) { return r.items.length; });
+    var wasKind = rows[current] && rows[current].kind;
+    rows = [headerRow(), makeRow('row-apps', 'apps', pinned), makeRow('row-all', 'all', rest)].filter(function (r) { return r.items.length; });
     rows.forEach(function (r, i) { r.index = Math.min(keep[i] || 0, r.items.length - 1); });
-    current = Math.min(current, rows.length - 1);
+    var again = rows.map(function (r) { return r.kind; }).indexOf(wasKind || 'apps');
+    current = again >= 0 ? again : Math.min(1, rows.length - 1);
     paint(true);
   }
 
@@ -345,12 +386,14 @@
       slide(r, instant);
     });
     glowForFocus();
+    shelfForFocus();
   }
 
   /* Keep the focused tile inside the screen with a margin, moving the row only
      as far as needed. The transition starts from wherever the row is now, so
      holding the button down just keeps it gliding. */
   function slide(r, instant) {
+    if (!r.track) return;
     var node = r.items[r.index] && r.items[r.index].node;
     if (!node) return;
     var view = 1920 - 2 * 112;
@@ -382,6 +425,7 @@
     var a = it.action;
     if (a.type === 'app') bridge.launch(a.pkg);
     else if (a.type === 'hdmi') bridge.hdmi(a.n, a.name || '');
+    else if (a.type === 'input') bridge.openInput(a.id);
     else if (a.type === 'settings') bridge.openSettings();
   }
 
@@ -407,16 +451,84 @@
     }
   });
 
-  window.goHome = function () { current = 0; rows.forEach(function (r) { r.index = 0; }); paint(false); };
+  window.goHome = function () {
+    var apps = rows.map(function (r) { return r.kind; }).indexOf('apps');
+    current = apps >= 0 ? apps : 0;
+    rows.forEach(function (r) { r.index = 0; });
+    paint(false);
+  };
 
   /* ================= apps from the TV ================= */
   var lastApps = '';
   function loadApps() {
     var raw = bridge ? bridge.apps() : '';
     if (!raw) { setTimeout(loadApps, 300); return; }   // banners are still being prepared
-    if (raw === lastApps) return;
-    lastApps = raw;
-    try { buildRows(JSON.parse(raw)); } catch (e) { /* keep the last rows */ }
+    var inputs = '[]';
+    try { inputs = (bridge.inputs && bridge.inputs()) || '[]'; } catch (e) { inputs = '[]'; }
+    if (raw + inputs === lastApps) return;
+    lastApps = raw + inputs;
+    try { buildRows(JSON.parse(raw), JSON.parse(inputs)); } catch (e) { /* keep the last rows */ }
+  }
+
+  /* ================= top shelf =================
+     Once the remote rests on a streaming app for a moment, the top half
+     crossfades to what's popular there; moving on brings the clock back. */
+  var trending = {};
+  function loadTrending() {
+    if (!API) return;
+    fetch(API + '/api/trending?token=' + encodeURIComponent(TOKEN))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.services) { trending = d.services; shelfForFocus(); } })
+      .catch(function () {});
+  }
+
+  var shelfTimer = null, shelfCycle = null, shelfService = null, shelfIndex = 0;
+  var shelfFront = $('shelfA'), shelfBack = $('shelfB');
+  function shelfForFocus() {
+    clearTimeout(shelfTimer);
+    var r = rows[current], it = r && r.items[r.index];
+    var service = it && r.kind === 'apps' && it.shelf && trending[it.shelf] && trending[it.shelf].length ? it.shelf : null;
+    if (!service) { hideShelf(); return; }
+    if (service === shelfService) return;
+    shelfTimer = setTimeout(function () { showShelf(service, it.shelfName || it.label); }, 650);
+  }
+  function hideShelf() {
+    shelfService = null;
+    clearInterval(shelfCycle);
+    document.body.classList.remove('shelf-on');
+  }
+  function showShelf(service, name) {
+    shelfService = service;
+    shelfIndex = 0;
+    $('shelfLabel').textContent = 'Popular on ' + name;
+    showTitle(true);
+    document.body.classList.add('shelf-on');
+    clearInterval(shelfCycle);
+    shelfCycle = setInterval(function () { shelfIndex++; showTitle(false); }, 7000);
+  }
+  function showTitle(first) {
+    var list = trending[shelfService] || [];
+    if (!list.length) return;
+    var item = list[shelfIndex % list.length];
+    var service = shelfService;
+    var img = new Image();
+    img.onload = function () {                // swap only once the picture is ready
+      if (service !== shelfService) return;
+      var text = $('shelfText');
+      if (!first) text.classList.add('swap');
+      setTimeout(function () {
+        $('shelfTitle').textContent = item.title;
+        $('shelfMeta').textContent = [item.kind === 'film' ? 'Film' : 'Series', item.year].filter(Boolean).join(' · ');
+        text.classList.remove('swap');
+      }, first ? 0 : 450);
+      shelfBack.classList.remove('on');
+      shelfBack.src = item.backdrop;
+      shelfBack.getBoundingClientRect();
+      shelfBack.classList.add('on');
+      shelfFront.classList.remove('on');
+      var t = shelfFront; shelfFront = shelfBack; shelfBack = t;
+    };
+    img.src = item.backdrop;
   }
 
   /* ================= cards: next up, music, parcels ================= */
@@ -509,6 +621,7 @@
   tick(); setInterval(tick, 1000);
   loadApps(); setInterval(loadApps, 10000);   // picks up installs and removals
   loadFeed(); setInterval(loadFeed, 90000);
+  loadTrending(); setInterval(loadTrending, 3 * 3600 * 1000);
   setInterval(renderNow, 3000);
 })();
 </script>

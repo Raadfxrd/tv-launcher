@@ -2,11 +2,12 @@
 
 A clean, fast, bloat-free setup for a Sony Bravia A1 (Android TV): an ambient
 screensaver with rotating photos, a clock, a **Next up** card that plans your
-trip to the next calendar event, and a now-playing card. A custom launcher
-comes later; until then Projectivy does the home screen.
+trip to the next calendar event, a now-playing card and today's parcels, plus
+a home screen of its own.
 
 ```
-api/            Vercel functions: /api/feed (calendar, route, weather), /api/photos
+api/            Vercel functions: /api/feed (calendar, route, weather, parcels),
+                /api/photos, /api/trending, /api/inbound + /api/inbox (parcel emails)
 lib/            the logic behind them, tested in test/
 public/         the screensaver page itself (served by Vercel, shown by the TV app)
 tv/             Android TV app: screensaver service + preview app, a thin WebView shell
@@ -35,7 +36,9 @@ TV itself through `window.TVBridge`, never through the API.
 
 Keys you need: a **Google Maps** key with the Geocoding API enabled to find
 event addresses, an **NS API** key for the door-to-door route with live
-delays, and an **Unsplash** access key plus collection id for photos.
+delays, an **Unsplash** access key plus collection id for photos, and a
+**TMDB** key (`TMDB_API_KEY`, the same one as home-dashboard) for the home
+screen's top shelf.
 
 ### 2. GitHub secrets (for the APK)
 
@@ -66,10 +69,20 @@ right away (OK reloads it), handy while tweaking the design.
 
 ## The home screen
 
-The app is also a launcher: the clock and weather, a row with HDMI 3 and your
-apps (Jellyfin, Tidal, Crunchyroll, Netflix, Disney+, Prime Video, HBO Max),
-the Next up / music / parcel cards, all other apps, and HDMI 1, HDMI 2 and
-Settings. The remote moves between rows; OK opens.
+The app is also a launcher: the clock and weather, the Next up / music /
+parcel cards, a row with Apple TV (HDMI 3) and your apps (Jellyfin, Tidal,
+Crunchyroll, Netflix, Disney+, Prime Video, HBO Max), and all other apps. The
+remote moves between rows; OK opens.
+
+- **Top shelf.** Rest on Apple TV, Netflix, Disney+, Prime Video, HBO Max or
+  Crunchyroll and the top half fades to what's popular on that service in the
+  Netherlands right now (from TMDB, via `/api/trending`, refreshed every few
+  hours). Move on and the clock and cards come back.
+- **Inputs appear when they're on.** Anything else plugged into an HDMI port
+  and switched on gets its own tile after Apple TV, named after the device
+  itself (HDMI-CEC), e.g. "PlayStation 5". Nothing connected, no tile.
+- **Settings** is the gear at the end of the weather line: press up from the
+  apps.
 
 The page ships inside the APK (`tv/app/src/main/assets/launcher`), so Home is
 instant and works offline; only the cards' data comes from the feed. The first
@@ -147,7 +160,9 @@ forwarded email again). Later, a Proton Mail Bridge poller can post the same
 
 ## Not built yet
 
-- **The launcher home screen** (replacing Projectivy).
+- **The apps' own rows.** Some apps publish "continue watching" rows to the
+  system; reading those needs a permission (`READ_EPG_DATA`) that may or may
+  not be grantable on the A1. Worth a try; TMDB is the fallback either way.
 - **Lite mode**: if the frosted cards stutter on the A1, add `&lite=1` to the
   page URL to drop the blur.
 

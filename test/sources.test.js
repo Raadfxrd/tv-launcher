@@ -133,3 +133,28 @@ test('token is required and compared exactly', () => {
 	assert.equal(authorised({url: '/api/feed'}, env), false);
 	assert.equal(authorised({url: '/api/feed?token='}, {}), false);
 });
+
+test('trending: streaming services are found by name, ad tiers skipped', () => {
+	const {matchProviders} = require('../lib/trending');
+	const ids = matchProviders([
+		{provider_id: 1796, provider_name: 'Netflix basic with Ads'},
+		{provider_id: 8, provider_name: 'Netflix'},
+		{provider_id: 337, provider_name: 'Disney Plus'},
+		{provider_id: 2100, provider_name: 'Amazon Prime Video with Ads'},
+		{provider_id: 119, provider_name: 'Amazon Prime Video'},
+		{provider_id: 350, provider_name: 'Apple TV+'},
+		{provider_id: 283, provider_name: 'Crunchyroll'},
+	]);
+	assert.deepEqual(ids, {apple: 350, netflix: 8, disney: 337, prime: 119, crunchyroll: 283});
+});
+
+test('trending: series and films merged by popularity, backdrops required', () => {
+	const {mergeTitles} = require('../lib/trending');
+	const out = mergeTitles(
+		[{id: 1, name: 'Show A', popularity: 50, backdrop_path: '/a.jpg', first_air_date: '2025-03-01'}, {id: 2, name: 'No art', popularity: 99, backdrop_path: null}],
+		[{id: 3, title: 'Film B', popularity: 80, backdrop_path: '/b.jpg', release_date: '2026-01-10'}]
+	);
+	assert.deepEqual(out.map((t) => t.title), ['Film B', 'Show A']);
+	assert.equal(out[0].backdrop, 'https://image.tmdb.org/t/p/w1280/b.jpg');
+	assert.equal(out[1].year, '2025');
+});
