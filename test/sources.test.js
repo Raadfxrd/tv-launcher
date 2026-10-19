@@ -179,3 +179,10 @@ test('trending: a service with few trending titles is topped up with recent rele
 	const plenty = ['1', '2', '3', '4', '5'].map((title) => ({title, kind: 'film'}));
 	assert.equal(fillUp(plenty, recent), plenty);
 });
+
+test('trending: repeats and adult titles are dropped', () => {
+	const {pickTrending} = require('../lib/trending');
+	const t = {id: 5, kind: 'series', name: 'Re:ZERO', backdrop_path: '/z.jpg'};
+	const out = pickTrending([t, {...t}, {id: 6, kind: 'film', title: 'Adult', backdrop_path: '/a.jpg', adult: true}], new Map([['series:5', [283]], ['film:6', [283]]]), 283);
+	assert.deepEqual(out.map((x) => x.title), ['Re:ZERO']);
+});
