@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+<title>Home</title>
+<style>
+  @font-face { font-family: 'Iosevka'; font-weight: 300; src: url('fonts/iosevka-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka'; font-weight: 400; src: url('fonts/iosevka-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka'; font-weight: 500; src: url('fonts/iosevka-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 300; src: url('fonts/iosevka-aile-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 400; src: url('fonts/iosevka-aile-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 500; src: url('fonts/iosevka-aile-latin-500-normal.woff2') format('woff2'); }
+
+  :root {
+    --text: #F2F2F0;
+    --muted: #8E8E93;
+    --line: #1F1F23;
+    --card: #0C0C0E;
+    --accent: #7FB2FF;
+    --warn: #FFB547;
+    --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped feel: no overshoot */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  .page { padding: 64px 112px 56px; height: 1080px; display: flex; flex-direction: column; gap: 44px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; justify-content: space-between; align-items: flex-end; }
+  .when { display: flex; align-items: baseline; gap: 28px; }
+  .clock { font-family: 'Iosevka', monospace; font-size: 76px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; }
+  .date { font-size: 26px; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); }
+
+  /* ---------- rows of tiles ---------- */
+  .row { display: flex; flex-direction: column; gap: 18px; }
+  .row-label { font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .viewport { margin: -24px -112px; padding: 24px 112px; overflow: hidden; }   /* room for the focus ring and scale */
+  .track { display: flex; gap: 24px; transition: transform 0.45s var(--settle); will-change: transform; }
+
+  .tile { position: relative; flex-shrink: 0; width: 256px; height: 144px; border-radius: 18px; background: #111113 center / cover no-repeat; border: 1px solid var(--line);
+          transition: transform 0.32s var(--settle), box-shadow 0.32s var(--settle), opacity 0.32s ease; opacity: 0.72; }
+  .tile.small { width: 208px; height: 117px; border-radius: 14px; }
+  .tile .name { position: absolute; left: 20px; bottom: 16px; right: 20px; font-size: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile.small .name { font-size: 20px; left: 16px; bottom: 12px; }
+  .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+  .tile.text .name { position: static; }
+  .tile.banner .name { display: none; }
+  /* Focus: the tile lifts toward you; the ring is light catching its edge. */
+  .row.active .tile.focused { opacity: 1; transform: scale(1.1); box-shadow: 0 0 0 3px var(--text), 0 24px 60px rgba(0,0,0,.6); }
+  .row:not(.active) .tile { opacity: 0.55; }
+  /* Pressing OK answers immediately, before anything opens. */
+  .row.active .tile.focused.pressed { transform: scale(1.04); transition-duration: 0.09s; }
+  /* The name rides along under the focused tile. */
+  .caption { height: 28px; font-size: 22px; color: var(--text); padding-left: 2px; opacity: 0; white-space: nowrap; transition: opacity 0.25s ease, transform 0.45s var(--settle); }
+  .row.active .caption { opacity: 1; }
+
+  /* ---------- now: next up, music, parcels ---------- */
+  .now { display: flex; gap: 24px; min-height: 0; transition: opacity 0.4s ease; }
+  .now:empty { display: none; }
+  .card { border-radius: 22px; background: var(--card); border: 1px solid var(--line); padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation: rise 0.6s var(--settle); }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .card .head { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); }
+  .card .title { font-size: 30px; font-weight: 500; letter-spacing: -0.01em; }
+  .card .sub { font-size: 22px; color: var(--muted); }
+  .card .leave { font-size: 26px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  .card .leave b { font-family: 'Iosevka', monospace; font-weight: 500; color: var(--accent); }
+  .card .leave.late b, .warn { color: var(--warn); }
+  .card .art { width: 72px; height: 72px; border-radius: 12px; background: #1A1A1E center / cover no-repeat; flex-shrink: 0; }
+  .card .media { display: flex; gap: 20px; align-items: center; }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); }
+  .steps i.done { background: var(--accent); }
+
+  /* ---------- bottom ---------- */
+  .chips { margin-top: auto; }
+  .chips .track { gap: 14px; }
+  .chip { flex-shrink: 0; font-size: 22px; color: var(--muted); padding: 14px 26px; border-radius: 30px; border: 1px solid var(--line); transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
+  .row.active .chip.focused { background: var(--text); color: #000; transform: scale(1.06); }
+  .row.active .chip.focused.pressed { transform: scale(1.0); }
+
+  @media (prefers-reduced-motion: reduce) { .track, .tile, .chip { transition-duration: 0.01s !important; } .card { animation: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="when"><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <section class="row" id="row-apps" data-size="large">
+    <div class="viewport"><div class="track"></div></div>
+    <div class="caption" id="caption-apps"></div>
+  </section>
+
+  <section class="now" id="now" aria-label="Now"></section>
+
+  <section class="row" id="row-all" data-size="small">
+    <div class="row-label">All apps</div>
+    <div class="viewport"><div class="track"></div></div>
+    <div class="caption" id="caption-all"></div>
+  </section>
+
+  <section class="row chips" id="row-chips">
+    <div class="viewport"><div class="track"></div></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= what goes on the home screen =================
+     The first row, in this order. Apps are found by package first, then by
+     the name the TV shows; ones that aren't installed are simply left out. */
+  var PINNED = [
+    {hdmi: 3, label: 'HDMI 3'},
+    {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
+    {label: 'Tidal', pkgs: ['com.aspiro.tidal'], names: ['tidal']},
+    {label: 'Crunchyroll', pkgs: ['com.crunchyroll.crunchyroid'], names: ['crunchyroll']},
+    {label: 'Netflix', pkgs: ['com.netflix.ninja'], names: ['netflix']},
+    {label: 'Disney+', pkgs: ['com.disney.disneyplus'], names: ['disney+', 'disney plus']},
+    {label: 'Prime Video', pkgs: ['com.amazon.amazonvideo.livingroom'], names: ['prime video', 'amazon prime video']},
+    {label: 'HBO Max', pkgs: ['com.wbd.stream', 'com.hbo.hbonow'], names: ['hbo max', 'max']}
+  ];
+
+  var params = new URLSearchParams(location.search);
+  var API = (params.get('api') || '').replace(/\/$/, '');
+  var TOKEN = params.get('token') || '';
+  var bridge = window.TVBridge || null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hhmm(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+  /* ================= clock ================= */
+  function tick() {
+    var now = new Date();
+    var t = hhmm(now);
+    if ($('clock').textContent !== t) $('clock').textContent = t;
+    $('date').textContent = now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
+  }
+
+  /* ================= rows and focus =================
+     Three rows: pinned apps, all apps, and the chips. Up/down moves between
+     rows and each row remembers where you were; left/right moves within a row,
+     sliding it so the focused tile always stays in view. */
+  var rows = [];          // [{el, items:[{node, label, action}], index}]
+  var current = 0;
+
+  function makeRow(id, items) {
+    var section = $(id);
+    var track = section.querySelector('.track');
+    track.textContent = '';
+    items.forEach(function (it) { track.appendChild(it.node); });
+    return {el: section, track: track, items: items, index: 0, caption: section.querySelector('.caption')};
+  }
+
+  function appTile(app, small) {
+    var node = el('div', 'tile' + (small ? ' small' : '') + (app.banner ? ' banner' : ''));
+    if (app.banner) node.style.backgroundImage = 'url("' + app.banner + '")';
+    node.appendChild(el('div', 'name', app.label));
+    return {node: node, label: app.label, action: {type: 'app', pkg: app.pkg}};
+  }
+
+  function hdmiTile(n, label) {
+    var node = el('div', 'tile text');
+    node.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+    node.appendChild(el('div', 'name', label));
+    return {node: node, label: label, action: {type: 'hdmi', n: n}};
+  }
+
+  function chip(label, action) {
+    return {node: el('div', 'chip', label), label: label, action: action};
+  }
+
+  function buildRows(apps) {
+    var used = {};
+    var pinned = [];
+    PINNED.forEach(function (p) {
+      if (p.hdmi) { pinned.push(hdmiTile(p.hdmi, p.label)); return; }
+      var app = apps.filter(function (a) { return p.pkgs.indexOf(a.pkg) >= 0; })[0] ||
+        apps.filter(function (a) { return p.names.indexOf(a.label.toLowerCase()) >= 0; })[0];
+      if (app && !used[app.pkg]) { used[app.pkg] = true; pinned.push(appTile(app, false)); }
+    });
+    var rest = apps.filter(function (a) { return !used[a.pkg]; }).map(function (a) { return appTile(a, true); });
+
+    var keep = rows.map(function (r) { return r.index; });
+    rows = [
+      makeRow('row-apps', pinned),
+      makeRow('row-all', rest),
+      makeRow('row-chips', [chip('HDMI 1', {type: 'hdmi', n: 1}), chip('HDMI 2', {type: 'hdmi', n: 2}), chip('Settings', {type: 'settings'})])
+    ].filter(function (r) { return r.items.length; });
+    rows.forEach(function (r, i) { r.index = Math.min(keep[i] || 0, r.items.length - 1); });
+    current = Math.min(current, rows.length - 1);
+    paint(true);
+  }
+
+  function paint(instant) {
+    rows.forEach(function (r, ri) {
+      r.el.classList.toggle('active', ri === current);
+      r.items.forEach(function (it, i) { it.node.classList.toggle('focused', i === r.index); });
+      if (r.caption) r.caption.textContent = r.items[r.index] ? r.items[r.index].label : '';
+      slide(r, instant);
+    });
+  }
+
+  /* Keep the focused tile inside the screen with a margin, moving the row only
+     as far as needed. The CSS transition starts from wherever the row is now,
+     so holding the button down just keeps it gliding. */
+  function slide(r, instant) {
+    var node = r.items[r.index] && r.items[r.index].node;
+    if (!node) return;
+    var view = 1920 - 2 * 112;
+    var left = node.offsetLeft;
+    var right = left + node.offsetWidth;
+    var x = r.offset || 0;
+    if (right + x > view - 40) x = view - 40 - right;
+    if (left + x < 0) x = -left;
+    x = Math.min(0, x);
+    r.offset = x;
+    if (instant) r.track.style.transition = 'none';
+    r.track.style.transform = 'translateX(' + x + 'px)';
+    if (r.caption) {
+      if (instant) r.caption.style.transition = 'none';
+      r.caption.style.transform = 'translateX(' + (left + x) + 'px)';
+    }
+    if (instant) {
+      r.track.getBoundingClientRect();
+      r.track.style.transition = '';
+      if (r.caption) r.caption.style.transition = '';
+    }
+  }
+
+  function move(dRow, dCol) {
+    if (!rows.length) return;
+    if (dRow) current = Math.max(0, Math.min(rows.length - 1, current + dRow));
+    if (dCol) { var r = rows[current]; r.index = Math.max(0, Math.min(r.items.length - 1, r.index + dCol)); }
+    paint(false);
+  }
+
+  function activate() {
+    var r = rows[current];
+    var it = r && r.items[r.index];
+    if (!it || !bridge) return;
+    var a = it.action;
+    if (a.type === 'app') bridge.launch(a.pkg);
+    else if (a.type === 'hdmi') bridge.hdmi(a.n);
+    else if (a.type === 'settings') bridge.openSettings();
+  }
+
+  var pressed = null;
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    if (k === 37) { move(0, -1); e.preventDefault(); }
+    else if (k === 39) { move(0, 1); e.preventDefault(); }
+    else if (k === 38) { move(-1, 0); e.preventDefault(); }
+    else if (k === 40) { move(1, 0); e.preventDefault(); }
+    else if ((k === 13 || k === 23) && !e.repeat) {
+      var r = rows[current];
+      pressed = r && r.items[r.index] && r.items[r.index].node;
+      if (pressed) pressed.classList.add('pressed');   // feedback on press, not on release
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('keyup', function (e) {
+    if ((e.keyCode === 13 || e.keyCode === 23) && pressed) {
+      pressed.classList.remove('pressed');
+      pressed = null;
+      activate();
+    }
+  });
+
+  window.goHome = function () { current = 0; rows.forEach(function (r) { r.index = 0; }); paint(false); };
+
+  /* ================= apps from the TV ================= */
+  var lastApps = '';
+  function loadApps() {
+    var raw = bridge ? bridge.apps() : '';
+    if (!raw) { setTimeout(loadApps, 300); return; }   // banners are still being prepared
+    if (raw === lastApps) return;
+    lastApps = raw;
+    try { buildRows(JSON.parse(raw)); } catch (e) { /* keep the last rows */ }
+  }
+
+  /* ================= cards: next up, music, parcels ================= */
+  var feed = null;
+  function loadFeed() {
+    if (!API) return;
+    fetch(API + '/api/feed?token=' + encodeURIComponent(TOKEN))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) { feed = d; renderNow(); renderStatus(); } })
+      .catch(function () {});
+  }
+
+  function renderStatus() {
+    var w = feed && feed.weather;
+    var parts = [];
+    if (w && w.configured && !w.error) {
+      if (w.temperature != null) parts.push(w.temperature + '°');
+      if (w.rain) parts.push(w.rain.text);
+    }
+    $('status').textContent = parts.join(' · ');
+  }
+
+  var lastNow = '';
+  function renderNow() {
+    var box = $('now');
+    var music = null;
+    try { var raw = bridge && bridge.nowPlaying(); music = raw ? JSON.parse(raw) : null; } catch (e) { music = null; }
+    var n = feed && feed.nextUp;
+    var parcels = (feed && feed.packages && feed.packages.items) || [];
+    var key = JSON.stringify([n && n.event, n && n.trip && n.trip.leaveAt, n && n.trip && n.trip.disrupted, music && [music.title, music.artist], parcels]);
+    if (key === lastNow) return;       // nothing changed: no rebuild, no flicker
+    lastNow = key;
+    box.textContent = '';
+
+    if (n && n.event && n.mode !== 'none') {
+      var c = el('div', 'card');
+      c.style.width = '760px';
+      var head = el('div', 'head');
+      head.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
+      head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
+      c.appendChild(head);
+      c.appendChild(el('div', 'title', n.event.title));
+      if (n.event.location) c.appendChild(el('div', 'sub', n.event.location));
+      var t = n.trip;
+      if (t && t.configured && !t.error && t.leaveAt) {
+        var leave = el('div', 'leave' + (t.disrupted ? ' late' : ''));
+        leave.appendChild(el('b', null, 'Leave ' + hhmm(t.leaveAt)));
+        var ride = (t.legs || []).filter(function (l) { return l.mode === 'transit'; })[0];
+        var bits = [t.durationMinutes + ' min trip'];
+        if (ride) bits.unshift((ride.line || '') + ' ' + (ride.departure ? hhmm(ride.departure) : '') + (ride.platform ? ' · Spoor ' + ride.platform : ''));
+        leave.appendChild(el('span', 'sub', bits.join(' · ')));
+        if (ride && ride.delayMinutes > 0) leave.appendChild(el('span', 'warn', '+' + ride.delayMinutes));
+        c.appendChild(leave);
+      }
+      box.appendChild(c);
+    }
+
+    if (music || parcels.length) {
+      var f = el('div', 'card');
+      f.style.width = '640px';
+      if (music) {
+        var m = el('div', 'media');
+        var art = el('div', 'art');
+        if (music.art) art.style.backgroundImage = 'url("' + music.art + '")';
+        m.appendChild(art);
+        var info = el('div');
+        info.appendChild(el('div', 'title', music.title || ''));
+        info.appendChild(el('div', 'sub', [music.artist, music.app].filter(Boolean).join(' · ')));
+        m.appendChild(info);
+        f.appendChild(m);
+      }
+      parcels.forEach(function (p) {
+        var row = el('div');
+        var top = el('div', 'head');
+        top.style.color = 'var(--text)';
+        top.appendChild(el('span', null, p.carrier + (p.for ? ' · for ' + p.for : '') + ' · ' + p.status));
+        if (p.window) top.appendChild(el('span', 'mono', p.window));
+        row.appendChild(top);
+        var steps = el('div', 'steps');
+        steps.style.marginTop = '10px';
+        for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (p.step || 0) ? 'done' : ''));
+        row.appendChild(steps);
+        f.appendChild(row);
+      });
+      box.appendChild(f);
+    }
+  }
+
+  window.onLauncherResume = function () { loadApps(); loadFeed(); };
+
+  /* ================= start ================= */
+  tick(); setInterval(tick, 1000);
+  loadApps(); setInterval(loadApps, 10000);   // picks up installs and removals
+  loadFeed(); setInterval(loadFeed, 90000);
+  setInterval(renderNow, 3000);
+})();
+</script>
+</body>
+</html>

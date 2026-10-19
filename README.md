@@ -64,6 +64,26 @@ adb shell settings put secure screensaver_enabled 1
 "Ambient" also appears as an app on the TV: it shows the screensaver page
 right away (OK reloads it), handy while tweaking the design.
 
+## The home screen
+
+The app is also a launcher: the clock and weather, a row with HDMI 3 and your
+apps (Jellyfin, Tidal, Crunchyroll, Netflix, Disney+, Prime Video, HBO Max),
+the Next up / music / parcel cards, all other apps, and HDMI 1, HDMI 2 and
+Settings. The remote moves between rows; OK opens.
+
+The page ships inside the APK (`tv/app/src/main/assets/launcher`), so Home is
+instant and works offline; only the cards' data comes from the feed. The first
+row is the `PINNED` list at the top of that page.
+
+To make it the TV's home screen, disable the stock launcher, then press Home
+(and pick "Ambient" if the TV asks):
+
+```bash
+adb shell pm list packages | grep -i launcher           # see what's there first
+adb shell pm disable-user --user 0 com.google.android.tvlauncher
+# undo: adb shell pm enable com.google.android.tvlauncher
+```
+
 ## Next up: the rules
 
 - All-day events and events that have started are ignored.
