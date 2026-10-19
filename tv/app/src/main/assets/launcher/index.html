@@ -34,84 +34,80 @@
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #6C6589; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
   .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
-  /* ---------- background ----------
-     Light pooled in the corners like the Home app, plus a glow behind the app
-     row that takes on the colour of the app you're on. The base holds still,
-     so the frosted cards blur it once; only the glow crossfades, briefly. */
-  .bg, .glow { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; }
-  .bg { z-index: 0;
+  /* ---------- the stage ----------
+     The whole screen is whatever the focused tile is about: what's popular on
+     that service right now, the album of what's playing on Tidal, or one of
+     your photos. Two layers crossfade with a slow drift; a shade on the left
+     and along the bottom keeps the text and glass readable on any picture. */
+  .bg { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
         background:
           radial-gradient(55% 60% at 10% 4%, #C66C8D 0%, rgba(198,108,141,0) 72%),
           radial-gradient(50% 55% at 92% 12%, #C98A52 0%, rgba(201,138,82,0) 70%),
           radial-gradient(55% 60% at 2% 70%, #4E7DB8 0%, rgba(78,125,184,0) 72%),
           radial-gradient(60% 60% at 92% 88%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
-          radial-gradient(70% 65% at 48% 108%, #5B62AA 0%, rgba(91,98,170,0) 75%),
           #6C6589; }
-  .glow { z-index: 0; opacity: 0; transition: opacity 0.9s ease; will-change: opacity; }
-  .glow.on { opacity: 1; }
-  .grain { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
+  .stage { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; overflow: hidden; }
+  .stage .pic { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; object-position: 50% 22%;
+                opacity: 0; transform: scale(1.0); transition: opacity 1.4s ease, transform 14s linear; will-change: opacity, transform; }
+  .stage .pic.on { opacity: 1; transform: scale(1.06); }
+  /* Album art is small: blown up and blurred it becomes light in the album's colours. */
+  .stage .pic.soft { filter: blur(70px) saturate(150%) brightness(0.8); top: -140px; left: -140px; width: 2200px; height: 1360px; }
+  .lite .stage .pic { transition: opacity 1.4s ease; transform: none !important; }
+  .shade { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; pointer-events: none;
            background:
-             linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.22) 100%),
-             url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
+             radial-gradient(60% 50% at 12% 22%, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0) 100%),
+             linear-gradient(90deg, rgba(10,8,24,0.55) 0%, rgba(10,8,24,0.18) 40%, rgba(10,8,24,0) 62%),
+             linear-gradient(0deg, rgba(10,8,24,0.82) 0%, rgba(10,8,24,0.4) 28%, rgba(10,8,24,0) 52%),
+             linear-gradient(180deg, rgba(10,8,24,0.28) 0%, rgba(10,8,24,0) 20%); }
 
   .glass { background: var(--glass-fill);
            box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.10), var(--lift-1);
            -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
-  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(26, 24, 38, 0.55); }
+  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 18, 32, 0.6); }
 
-  .page { position: relative; z-index: 1; padding: 72px 112px 0; height: 1080px; }
+  .page { position: relative; z-index: 1; width: 1920px; height: 1080px; }
 
-  /* ---------- top half: time on the left, what's next on the right ---------- */
-  .top { display: flex; justify-content: space-between; align-items: flex-start; height: 430px; }
-  .when { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
-  .greeting { font-size: 30px; color: var(--muted); letter-spacing: -0.005em; }
-  .clock { font-family: 'Iosevka', monospace; font-size: 188px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.92; text-shadow: 0 2px 30px rgba(20, 10, 50, 0.18); }
+  /* ---------- what's on the stage, top left ---------- */
+  .about { position: absolute; left: 112px; top: 132px; width: 980px; display: flex; flex-direction: column; gap: 12px;
+           transition: opacity 0.45s ease, transform 0.6s var(--settle); }
+  .about.swap { opacity: 0; transform: translateY(8px); }
+  .about-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); }
+  .about-title { font-size: 76px; font-weight: 500; letter-spacing: -0.022em; line-height: 1.02; text-shadow: 0 2px 30px rgba(0,0,0,0.35);
+                 display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .about-meta { font-size: 24px; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); }
+  .about-title:empty, .about-meta:empty, .about-label:empty { display: none; }
+
+  /* ---------- the dock: time on the left, what's next on the right ---------- */
+  .dock { position: absolute; left: 112px; right: 112px; bottom: 60px; display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
+  .when { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .clock { font-family: 'Iosevka', monospace; font-size: 136px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.9; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
   .clock span { display: inline-block; }
-  .date { font-size: 32px; color: var(--muted); padding-left: 6px; }
-  .status { display: flex; align-items: center; gap: 12px; font-size: 26px; color: var(--muted); padding: 18px 0 0 6px; }
+  .date { font-size: 28px; padding: 14px 0 0 4px; text-shadow: 0 1px 16px rgba(0,0,0,0.3); }
+  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); padding: 2px 0 0 4px; min-height: 48px; }
 
-  /* The gear for Settings sits at the end of the weather line: reachable with
-     up, without a row of its own. */
-  .gear { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 26px; margin-left: 10px; color: var(--text);
+  /* Settings: a gear at the end of the date line, one press down from the apps. */
+  .gear { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 24px; margin-left: 8px; color: var(--text); flex-shrink: 0;
           transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
-  .row.active .gear.focused { background: #fff; color: #1a1630; transform: scale(1.1); box-shadow: var(--lift-2); }
+  .row.active .gear.focused { background: #fff; color: #1a1630; transform: scale(1.12); box-shadow: var(--lift-2); }
   .row.active .gear.focused.pressed { transform: scale(1.0); }
 
-  .top { transition: opacity 0.5s ease, transform 0.6s var(--settle); }
-  body.shelf-on .top { opacity: 0; transform: translateY(-14px); }
-
-  /* ---------- top shelf ----------
-     Rest on a streaming app and the top of the screen becomes what's popular
-     there right now: big backdrops crossfading with a slow zoom, the title in
-     the corner, fading into the background toward the app row. */
-  .shelf { position: fixed; top: 0; left: 0; width: 1920px; height: 700px; z-index: 0; opacity: 0; transition: opacity 0.9s ease;
-           -webkit-mask-image: linear-gradient(to bottom, #000 52%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, #000 52%, rgba(0,0,0,0) 100%); }
-  body.shelf-on .shelf { opacity: 1; }
-  .shelf img { position: absolute; top: 0; left: 0; width: 1920px; height: 700px; object-fit: cover; object-position: 50% 22%; opacity: 0; transform: scale(1);
-               transition: opacity 1.4s ease, transform 10s linear; will-change: opacity, transform; }
-  .shelf img.on { opacity: 1; transform: scale(1.05); }
-  .shelf-shade { position: absolute; inset: 0;
-                 background: linear-gradient(90deg, rgba(14,10,32,0.72) 0%, rgba(14,10,32,0.25) 45%, rgba(14,10,32,0) 70%),
-                             linear-gradient(0deg, rgba(14,10,32,0.55) 0%, rgba(14,10,32,0) 45%); }
-  .shelf-text { position: absolute; left: 112px; top: 250px; width: 900px; display: flex; flex-direction: column; gap: 10px; transition: opacity 0.5s ease; }
-  .shelf-text.swap { opacity: 0; }
-  .shelf-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-  .shelf-title { font-size: 68px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.02; text-shadow: 0 2px 30px rgba(0,0,0,0.35); }
-  .shelf-meta { font-size: 24px; color: var(--muted); }
-
-  .now { width: 720px; display: flex; flex-direction: column; gap: 20px; }
-  .card { border-radius: 28px; padding: 26px 30px; display: flex; flex-direction: column; gap: 12px; animation: rise 0.7s var(--settle) both; }
+  .now { display: flex; gap: 24px; align-items: flex-end; justify-content: flex-end; min-width: 0; }
+  .card { width: 520px; flex-shrink: 1; min-width: 0; border-radius: 26px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; animation: rise 0.7s var(--settle) both; }
+  .card.next { width: 620px; }
   .card + .card { animation-delay: 0.06s; }
   @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
-  .card .head { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); letter-spacing: 0.01em; }
-  .card .title { font-size: 32px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.15; }
-  .card .sub { font-size: 22px; color: var(--muted); }
-  .card .leave { font-size: 26px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; padding-top: 4px; }
+  .card .head { display: flex; justify-content: space-between; font-size: 19px; color: var(--muted); letter-spacing: 0.01em; }
+  .card .title { font-size: 28px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .sub { font-size: 20px; color: var(--muted); }
+  .card .leave { font-size: 22px; display: flex; gap: 12px; align-items: baseline; padding-top: 2px; white-space: nowrap; min-width: 0; }
+  .card .leave .sub { overflow: hidden; text-overflow: ellipsis; }
   .card .leave b { font-family: 'Iosevka', monospace; font-weight: 500; color: var(--accent); }
   .card .leave.late b, .warn { color: var(--warn); }
-  .card .art { width: 76px; height: 76px; border-radius: 14px; background: rgba(0,0,0,0.25) center / cover no-repeat; flex-shrink: 0; box-shadow: var(--lift-1); }
-  .card .media { display: flex; gap: 20px; align-items: center; }
-  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+  .card .art { width: 64px; height: 64px; border-radius: 12px; background: rgba(0,0,0,0.25) center / cover no-repeat; flex-shrink: 0; box-shadow: var(--lift-1); }
+  .card .media { display: flex; gap: 18px; align-items: center; min-width: 0; }
+  .card .media > div:last-child { min-width: 0; }
+  .parcel .head { color: var(--text); font-size: 20px; }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
   .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); }
   .steps i.done { background: var(--accent); }
 
@@ -129,9 +125,7 @@
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), var(--lift-1);
           transform: translateZ(0);
           transition: transform 0.4s var(--settle), box-shadow 0.4s var(--settle), opacity 0.3s ease; }
-  .tile.small { width: 224px; height: 126px; border-radius: 20px; }
   .tile .name { position: absolute; left: 22px; bottom: 18px; right: 22px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile.small .name { font-size: 20px; left: 18px; bottom: 14px; }
   .tile.banner .name { display: none; }
   .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 22px; }
   .tile.text .name { position: static; font-size: 30px; font-weight: 500; letter-spacing: -0.01em; }
@@ -141,7 +135,6 @@
   .tile::after { content: ''; position: absolute; inset: -40% -60%; pointer-events: none;
                  background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 60%);
                  transform: translateX(-60%); opacity: 0; }
-  .row:not(.active) .tile { opacity: 0.66; }
   .row.active .tile.focused { transform: scale(1.09) translateZ(0);
                               box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 3px rgba(255,255,255,0.95), var(--lift-2); }
   .row.active .tile.focused::after { animation: sheen 1.1s var(--settle) 0.05s both; }
@@ -153,50 +146,36 @@
              text-shadow: 0 1px 12px rgba(20, 10, 50, 0.3); transition: opacity 0.25s ease, transform 0.5s var(--settle); }
   .row.active .caption { opacity: 1; }
 
-  #row-apps { margin-top: 24px; height: 230px; }
+  #row-apps { position: absolute; left: 112px; right: 112px; top: 492px; height: 230px; }
   #row-apps .caption { top: 186px; }
-  #row-all { height: 216px; margin-top: 18px; }
-  #row-all .caption { top: 176px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .track, .tile, .gear, .caption, .glow, .shelf, .shelf img, .top { transition-duration: 0.01s !important; }
+    .track, .tile, .gear, .caption, .about, .stage .pic { transition-duration: 0.01s !important; }
     .card { animation: none; } .tile::after { display: none; }
   }
 </style>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
-<div class="glow" id="glowA" aria-hidden="true"></div>
-<div class="glow" id="glowB" aria-hidden="true"></div>
-<div class="shelf" id="shelf" aria-hidden="true">
-  <img id="shelfA" alt=""><img id="shelfB" alt="">
-  <div class="shelf-shade"></div>
-  <div class="shelf-text" id="shelfText"><div class="shelf-label" id="shelfLabel"></div><div class="shelf-title" id="shelfTitle"></div><div class="shelf-meta" id="shelfMeta"></div></div>
-</div>
-<div class="grain" aria-hidden="true"></div>
+<div class="stage" aria-hidden="true"><img class="pic" id="picA" alt=""><img class="pic" id="picB" alt=""></div>
+<div class="shade" aria-hidden="true"></div>
 
 <div class="page">
-  <section class="top">
-    <div class="when">
-      <div class="greeting" id="greeting"></div>
-      <div class="clock" id="clock" aria-label="Time"></div>
-      <div class="date" id="date"></div>
-      <div class="row" id="row-top"><div class="status"><span id="status"></span><span class="gear glass" id="gear" aria-label="Settings"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div></div>
-    </div>
-    <div class="now" id="now" aria-label="Now"></div>
-  </section>
+  <div class="about" id="about"><div class="about-label" id="aboutLabel"></div><div class="about-title" id="aboutTitle"></div><div class="about-meta" id="aboutMeta"></div></div>
 
   <section class="row" id="row-apps">
     <div class="viewport"><div class="track"></div></div>
     <div class="caption"></div>
   </section>
 
-  <section class="row" id="row-all">
-    <div class="row-label">All apps</div>
-    <div class="viewport"><div class="track"></div></div>
-    <div class="caption"></div>
-  </section>
-
+  <div class="dock">
+    <div class="when">
+      <div class="clock" id="clock" aria-label="Time"></div>
+      <div class="date" id="date"></div>
+      <div class="row" id="row-dock"><div class="status"><span id="status"></span><span class="gear glass" id="gear" aria-label="Settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div></div>
+    </div>
+    <div class="now" id="now" aria-label="Now"></div>
+  </div>
 </div>
 
 <script>
@@ -204,14 +183,14 @@
   'use strict';
 
   /* ================= what goes on the home screen =================
-     The first row, in this order. Apps are found by package first, then by
+     The only row, in this order. Apps are found by package first, then by
      the name the TV shows; ones that aren't installed are simply left out.
-     `color` is the glow for tiles without a banner to take a colour from;
-     `shelf` is which service's trending titles the top shelf shows. */
+     `shelf` is whose popular titles fill the screen while you're on it;
+     `music` shows what's playing instead. Everything else shows your photos. */
   var PINNED = [
-    {hdmi: 3, label: 'Apple TV', color: [150, 150, 170], shelf: 'apple', shelfName: 'Apple TV+'},     // the Apple TV, on HDMI 3
+    {hdmi: 3, label: 'Apple TV', shelf: 'apple', shelfName: 'Apple TV+'},     // the Apple TV, on HDMI 3
     {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
-    {label: 'Tidal', pkgs: ['com.aspiro.tidal'], names: ['tidal']},
+    {label: 'Tidal', pkgs: ['com.aspiro.tidal'], names: ['tidal'], music: true},
     {label: 'Crunchyroll', pkgs: ['com.crunchyroll.crunchyroid'], names: ['crunchyroll'], shelf: 'crunchyroll'},
     {label: 'Netflix', pkgs: ['com.netflix.ninja'], names: ['netflix'], shelf: 'netflix'},
     {label: 'Disney+', pkgs: ['com.disney.disneyplus'], names: ['disney+', 'disney plus'], shelf: 'disney'},
@@ -246,69 +225,12 @@
         if (!REDUCED && digits[j].animate) digits[j].animate([{opacity: 0, transform: 'translateY(0.1em)'}, {opacity: 1, transform: 'none'}], {duration: 700, easing: 'cubic-bezier(0.22, 1, 0.36, 1)'});
       }
     }
-    var h = now.getHours();
-    $('greeting').textContent = h < 6 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
     $('date').textContent = now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
   }
 
-  /* ================= the glow behind the app row =================
-     Each app's colour is taken from its own banner: the average of its
-     vivid pixels, lifted a little so it glows rather than muddies. Two layers
-     crossfade so the colour never jumps. */
-  var colorCache = {};
-  function bannerColor(src, done) {
-    if (colorCache[src]) return done(colorCache[src]);
-    var img = new Image();
-    img.onload = function () {
-      try {
-        var c = document.createElement('canvas'); c.width = 24; c.height = 14;
-        var g = c.getContext('2d'); g.drawImage(img, 0, 0, 24, 14);
-        var d = g.getImageData(0, 0, 24, 14).data, r = 0, gr = 0, b = 0, w = 0;
-        for (var i = 0; i < d.length; i += 4) {
-          var max = Math.max(d[i], d[i + 1], d[i + 2]), min = Math.min(d[i], d[i + 1], d[i + 2]);
-          var weight = (max - min) / 255 + 0.08;            // vivid pixels count more than grey ones
-          r += d[i] * weight; gr += d[i + 1] * weight; b += d[i + 2] * weight; w += weight;
-        }
-        colorCache[src] = lift([r / w, gr / w, b / w]);
-      } catch (e) { colorCache[src] = null; }
-      done(colorCache[src]);
-    };
-    img.onerror = function () { done(null); };
-    img.src = src;
-  }
-  function lift(rgb) {   // brighter and a bit more saturated, so it reads as light
-    var avg = (rgb[0] + rgb[1] + rgb[2]) / 3;
-    return rgb.map(function (v) { return Math.round(Math.min(255, (v + (v - avg) * 0.6) * 1.15 + 30)); });
-  }
-  var glowFront = $('glowA'), glowBack = $('glowB'), glowKey = '', glowTimer = null;
-  function glowTo(rgb) {
-    var key = rgb ? rgb.join(',') : '';
-    if (key === glowKey) return;
-    glowKey = key;
-    if (!rgb) { glowFront.classList.remove('on'); return; }
-    glowBack.style.background =
-      'radial-gradient(60% 55% at 30% 68%, rgba(' + key + ',0.55) 0%, rgba(' + key + ',0) 70%),' +
-      'radial-gradient(40% 40% at 78% 72%, rgba(' + key + ',0.28) 0%, rgba(' + key + ',0) 70%)';
-    glowBack.classList.add('on');
-    glowFront.classList.remove('on');
-    var t = glowFront; glowFront = glowBack; glowBack = t;
-  }
-  function glowForFocus() {
-    clearTimeout(glowTimer);
-    // Wait until the remote rests on a tile: holding right doesn't strobe colours.
-    glowTimer = setTimeout(function () {
-      var r = rows[current], it = r && r.items[r.index];
-      if (!it || r.kind === 'header') return glowTo(null);
-      if (it.color) return glowTo(it.color);
-      if (it.banner) bannerColor(it.banner, function (c) { if (rows[current] && rows[current].items[rows[current].index] === it) glowTo(c); });
-      else glowTo(null);
-    }, 140);
-  }
-
   /* ================= rows and focus =================
-     Three rows: pinned apps, all apps, and the chips. Up/down moves between
-     rows and each row remembers where you were; left/right moves within a row,
-     sliding it so the focused tile always stays in view. */
+     The apps, and below them the gear. Left/right moves along the row,
+     sliding it so the focused tile always stays in view; down reaches the gear. */
   var rows = [];
   var current = 0;
 
@@ -320,8 +242,8 @@
     return {el: section, kind: kind, track: track, items: items, index: 0, caption: section.querySelector('.caption')};
   }
 
-  function appTile(app, small) {
-    var node = el('div', 'tile' + (small ? ' small' : '') + (app.banner ? ' banner' : ' glass'));
+  function appTile(app) {
+    var node = el('div', 'tile' + (app.banner ? ' banner' : ' glass'));
     if (app.banner) node.style.backgroundImage = 'url("' + app.banner + '")';
     node.appendChild(el('div', 'name', app.label));
     return {node: node, label: app.label, banner: app.banner, action: {type: 'app', pkg: app.pkg}};
@@ -329,17 +251,17 @@
 
   /* A device on an HDMI input, shown by its own name ("Apple TV") with the
      port above it so it's clear what it switches to. */
-  function hdmiTile(n, label, color, action) {
+  function hdmiTile(n, label, action) {
     var node = el('div', 'tile text glass');
     node.appendChild(el('div', 'port', 'HDMI ' + n));
     node.appendChild(el('div', 'name', label));
-    return {node: node, label: label, color: color, action: action || {type: 'hdmi', n: n, name: label}};
+    return {node: node, label: label, action: action || {type: 'hdmi', n: n, name: label}};
   }
 
 
-  /* Up from the apps: the gear at the end of the weather line. */
+  /* Down from the apps: the gear at the end of the date line. */
   var gearItem = {node: $('gear'), label: 'Settings', action: {type: 'settings'}};
-  function headerRow() { return {el: $('row-top'), kind: 'header', track: null, items: [gearItem], index: 0, caption: null}; }
+  function dockRow() { return {el: $('row-dock'), kind: 'dock', track: null, items: [gearItem], index: 0, caption: null}; }
 
   function buildRows(apps, inputs) {
     var used = {};
@@ -347,14 +269,14 @@
     var pinnedPorts = PINNED.filter(function (p) { return p.hdmi; }).map(function (p) { return p.hdmi; });
     PINNED.forEach(function (p, i) {
       if (p.hdmi) {
-        var tile = hdmiTile(p.hdmi, p.label, p.color);
+        var tile = hdmiTile(p.hdmi, p.label);
         tile.shelf = p.shelf; tile.shelfName = p.shelfName;
         pinned.push(tile);
         // Right after the pinned device: whatever else is plugged in and on,
         // named after the device itself. Nothing connected, no tile.
         if (i === 0) inputs.forEach(function (inp) {
           if (pinnedPorts.indexOf(inp.number) >= 0) return;
-          pinned.push(hdmiTile(inp.number, inp.name, [140, 150, 175], {type: 'input', id: inp.id}));
+          pinned.push(hdmiTile(inp.number, inp.name, {type: 'input', id: inp.id}));
         });
         return;
       }
@@ -362,19 +284,18 @@
         apps.filter(function (a) { return p.names.indexOf(a.label.toLowerCase()) >= 0; })[0];
       if (app && !used[app.pkg]) {
         used[app.pkg] = true;
-        var t = appTile(app, false);
-        t.shelf = p.shelf; t.shelfName = p.label;
+        var t = appTile(app);
+        t.shelf = p.shelf; t.shelfName = p.label; t.music = p.music;
         pinned.push(t);
       }
     });
-    var rest = apps.filter(function (a) { return !used[a.pkg]; }).map(function (a) { return appTile(a, true); });
 
     var keep = rows.map(function (r) { return r.index; });
     var wasKind = rows[current] && rows[current].kind;
-    rows = [headerRow(), makeRow('row-apps', 'apps', pinned), makeRow('row-all', 'all', rest)].filter(function (r) { return r.items.length; });
+    rows = [makeRow('row-apps', 'apps', pinned), dockRow()].filter(function (r) { return r.items.length; });
     rows.forEach(function (r, i) { r.index = Math.min(keep[i] || 0, r.items.length - 1); });
     var again = rows.map(function (r) { return r.kind; }).indexOf(wasKind || 'apps');
-    current = again >= 0 ? again : Math.min(1, rows.length - 1);
+    current = again >= 0 ? again : 0;
     paint(true);
   }
 
@@ -385,8 +306,7 @@
       if (r.caption) r.caption.textContent = r.items[r.index] ? r.items[r.index].label : '';
       slide(r, instant);
     });
-    glowForFocus();
-    shelfForFocus();
+    stageForFocus();
   }
 
   /* Keep the focused tile inside the screen with a margin, moving the row only
@@ -470,65 +390,110 @@
     try { buildRows(JSON.parse(raw), JSON.parse(inputs)); } catch (e) { /* keep the last rows */ }
   }
 
-  /* ================= top shelf =================
-     Once the remote rests on a streaming app for a moment, the top half
-     crossfades to what's popular there; moving on brings the clock back. */
+  /* ================= the stage =================
+     The whole background follows the focused tile, once the remote rests on
+     it: a streaming app shows what's popular there (TMDB, via /api/trending),
+     Tidal shows the album that's playing, and everything else your photos.
+     Each source cycles slowly; a picture only swaps in once it has loaded. */
   var trending = {};
   function loadTrending() {
     if (!API) return;
     fetch(API + '/api/trending?token=' + encodeURIComponent(TOKEN))
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && d.services) { trending = d.services; shelfForFocus(); } })
+      .then(function (d) { if (d && d.services) { trending = d.services; stageForFocus(); } })
       .catch(function () {});
   }
 
-  var shelfTimer = null, shelfCycle = null, shelfService = null, shelfIndex = 0;
-  var shelfFront = $('shelfA'), shelfBack = $('shelfB');
-  function shelfForFocus() {
-    clearTimeout(shelfTimer);
-    var r = rows[current], it = r && r.items[r.index];
-    var service = it && r.kind === 'apps' && it.shelf && trending[it.shelf] && trending[it.shelf].length ? it.shelf : null;
-    if (!service) { hideShelf(); return; }
-    if (service === shelfService) return;
-    shelfTimer = setTimeout(function () { showShelf(service, it.shelfName || it.label); }, 650);
+  var photos = [], photoIndex = 0;
+  function loadPhotos() {
+    if (!API) return;
+    fetch(API + '/api/photos?token=' + encodeURIComponent(TOKEN))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.photos || !d.photos.length) return;
+        photos = d.photos.slice().sort(function () { return Math.random() - 0.5; });
+        stageForFocus();
+      })
+      .catch(function () {});
   }
-  function hideShelf() {
-    shelfService = null;
-    clearInterval(shelfCycle);
-    document.body.classList.remove('shelf-on');
+
+  function playing() {
+    try { var raw = bridge && bridge.nowPlaying(); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
-  function showShelf(service, name) {
-    shelfService = service;
-    shelfIndex = 0;
-    $('shelfLabel').textContent = 'Popular on ' + name;
-    showTitle(true);
-    document.body.classList.add('shelf-on');
-    clearInterval(shelfCycle);
-    shelfCycle = setInterval(function () { shelfIndex++; showTitle(false); }, 7000);
+
+  /* What the stage should show for a tile: a key (same key, keep going) and a
+     way to get the next picture. */
+  function sourceFor(it) {
+    if (it && it.shelf && trending[it.shelf] && trending[it.shelf].length) {
+      var list = trending[it.shelf];
+      return {key: 'svc:' + it.shelf, next: function (i) {
+        var t = list[i % list.length];
+        return {src: t.backdrop, label: 'Popular on ' + (it.shelfName || it.label), title: t.title,
+                meta: [t.kind === 'film' ? 'Film' : 'Series', t.year].filter(Boolean).join(' · ')};
+      }};
+    }
+    var music = it && it.music ? playing() : null;
+    if (music && music.title && music.art) {
+      return {key: 'music:' + music.title, still: true, next: function () {
+        return {src: music.art, soft: true, label: 'Now playing', title: music.title, meta: music.artist || ''};
+      }};
+    }
+    if (photos.length) {
+      return {key: 'photos', next: function () {
+        var ph = photos[photoIndex++ % photos.length];
+        return {src: ph.url, label: '', title: '', meta: ''};
+      }};
+    }
+    return null;
   }
-  function showTitle(first) {
-    var list = trending[shelfService] || [];
-    if (!list.length) return;
-    var item = list[shelfIndex % list.length];
-    var service = shelfService;
+
+  var stageKey = null, stageStep = 0, stageTimer = null, stageCycle = null;
+  var picFront = $('picA'), picBack = $('picB');
+  function stageForFocus() {
+    clearTimeout(stageTimer);
+    var r = rows[current];
+    var it = r && r.kind === 'apps' ? r.items[r.index] : (rows[0] && rows[0].items[rows[0].index]);
+    var source = sourceFor(it);
+    var key = source ? source.key : null;
+    if (key === stageKey) return;
+    // Wait until the remote rests: holding right doesn't flash every app past.
+    stageTimer = setTimeout(function () {
+      stageKey = key;
+      stageStep = 0;
+      clearInterval(stageCycle);
+      if (!source) { showPicture(null); return; }
+      showPicture(source.next(stageStep));
+      if (!source.still) stageCycle = setInterval(function () { stageStep++; showPicture(source.next(stageStep)); }, 9000);
+    }, stageKey === null ? 0 : 450);
+  }
+
+  function showPicture(pic) {
+    var about = $('about');
+    if (!pic) {
+      about.classList.add('swap');
+      picFront.classList.remove('on');
+      return;
+    }
+    var key = stageKey;
     var img = new Image();
-    img.onload = function () {                // swap only once the picture is ready
-      if (service !== shelfService) return;
-      var text = $('shelfText');
-      if (!first) text.classList.add('swap');
+    img.onload = function () {
+      if (key !== stageKey) return;            // focus moved on while it loaded
+      about.classList.add('swap');
       setTimeout(function () {
-        $('shelfTitle').textContent = item.title;
-        $('shelfMeta').textContent = [item.kind === 'film' ? 'Film' : 'Series', item.year].filter(Boolean).join(' · ');
-        text.classList.remove('swap');
-      }, first ? 0 : 450);
-      shelfBack.classList.remove('on');
-      shelfBack.src = item.backdrop;
-      shelfBack.getBoundingClientRect();
-      shelfBack.classList.add('on');
-      shelfFront.classList.remove('on');
-      var t = shelfFront; shelfFront = shelfBack; shelfBack = t;
+        $('aboutLabel').textContent = pic.label;
+        $('aboutTitle').textContent = pic.title;
+        $('aboutMeta').textContent = pic.meta;
+        if (pic.label || pic.title) about.classList.remove('swap');
+      }, 420);
+      picBack.classList.remove('on');
+      picBack.classList.toggle('soft', !!pic.soft);
+      picBack.src = pic.src;
+      picBack.getBoundingClientRect();
+      picBack.classList.add('on');
+      picFront.classList.remove('on');
+      var t = picFront; picFront = picBack; picBack = t;
     };
-    img.src = item.backdrop;
+    img.src = pic.src;
   }
 
   /* ================= cards: next up, music, parcels ================= */
@@ -560,11 +525,12 @@
     var parcels = (feed && feed.packages && feed.packages.items) || [];
     var key = JSON.stringify([n && n.event, n && n.trip && n.trip.leaveAt, n && n.trip && n.trip.disrupted, music && [music.title, music.artist], parcels]);
     if (key === lastNow) return;       // nothing changed: no rebuild, no flicker
+    if (lastNow) stageForFocus();      // a new song: Tidal's backdrop follows
     lastNow = key;
     box.textContent = '';
 
     if (n && n.event && n.mode !== 'none') {
-      var c = el('div', 'card glass');
+      var c = el('div', 'card glass next');
       var head = el('div', 'head');
       head.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
       head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
@@ -576,10 +542,11 @@
         var leave = el('div', 'leave' + (t.disrupted ? ' late' : ''));
         leave.appendChild(el('b', null, 'Leave ' + hhmm(t.leaveAt)));
         var ride = (t.legs || []).filter(function (l) { return l.mode === 'transit'; })[0];
-        var bits = [t.durationMinutes + ' min trip'];
+        var bits = [t.durationMinutes + ' min'];
         if (ride) bits.unshift((ride.line || '') + ' ' + (ride.departure ? hhmm(ride.departure) : '') + (ride.platform ? ' · Spoor ' + ride.platform : ''));
-        leave.appendChild(el('span', 'sub', bits.join(' · ')));
-        if (ride && ride.delayMinutes > 0) leave.appendChild(el('span', 'warn', '+' + ride.delayMinutes));
+        var rest = el('span', 'sub', bits.join(' · '));
+        if (ride && ride.delayMinutes > 0) { rest.appendChild(document.createTextNode(' ')); rest.appendChild(el('span', 'warn', '+' + ride.delayMinutes)); }
+        leave.appendChild(rest);
         c.appendChild(leave);
       }
       box.appendChild(c);
@@ -599,10 +566,8 @@
         f.appendChild(m);
       }
       parcels.forEach(function (p) {
-        var row = el('div');
+        var row = el('div', 'parcel');
         var top = el('div', 'head');
-        top.style.color = 'var(--text)';
-        top.style.fontSize = '22px';
         top.appendChild(el('span', null, p.carrier + (p.for ? ' · for ' + p.for : '') + ' · ' + p.status));
         if (p.window) top.appendChild(el('span', 'mono', p.window));
         row.appendChild(top);
@@ -622,6 +587,7 @@
   loadApps(); setInterval(loadApps, 10000);   // picks up installs and removals
   loadFeed(); setInterval(loadFeed, 90000);
   loadTrending(); setInterval(loadTrending, 3 * 3600 * 1000);
+  loadPhotos(); setInterval(loadPhotos, 3600 * 1000);
   setInterval(renderNow, 3000);
 })();
 </script>

@@ -69,20 +69,21 @@ right away (OK reloads it), handy while tweaking the design.
 
 ## The home screen
 
-The app is also a launcher: the clock and weather, the Next up / music /
-parcel cards, a row with Apple TV (HDMI 3) and your apps (Jellyfin, Tidal,
-Crunchyroll, Netflix, Disney+, Prime Video, HBO Max), and all other apps. The
-remote moves between rows; OK opens.
+The app is also a launcher, with one row: Apple TV (HDMI 3), Jellyfin, Tidal,
+Crunchyroll, Netflix, Disney+, Prime Video and HBO Max. The clock, weather and
+the Next up / music / parcel cards sit along the bottom. Left/right moves
+along the apps, OK opens.
 
-- **Top shelf.** Rest on Apple TV, Netflix, Disney+, Prime Video, HBO Max or
-  Crunchyroll and the top half fades to what's popular on that service in the
-  Netherlands right now (from TMDB, via `/api/trending`, refreshed every few
-  hours). Move on and the clock and cards come back.
+- **The background follows the focused tile.** Rest on Apple TV, Netflix,
+  Disney+, Prime Video, HBO Max or Crunchyroll and the whole screen shows
+  what's popular on that service in the Netherlands right now (from TMDB, via
+  `/api/trending`, refreshed every few hours), with the title top left. On
+  Tidal it's the album that's playing; on anything else, your Unsplash photos.
 - **Inputs appear when they're on.** Anything else plugged into an HDMI port
   and switched on gets its own tile after Apple TV, named after the device
   itself (HDMI-CEC), e.g. "PlayStation 5". Nothing connected, no tile.
-- **Settings** is the gear at the end of the weather line: press up from the
-  apps.
+- **Settings** is the gear under the clock: press down from the apps.
+- Other installed apps don't get a tile; open them from Settings → Apps.
 
 The page ships inside the APK (`tv/app/src/main/assets/launcher`), so Home is
 instant and works offline; only the cards' data comes from the feed. The first
