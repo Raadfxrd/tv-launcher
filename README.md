@@ -98,6 +98,24 @@ email to `/api/inbound?token=INBOUND_TOKEN`.
 4. The TV only shows parcels that matter today: out for delivery, expected
    today, or delivered today.
 
+Many emails about the same parcels (the shop, bol.com, PostNL, all three) are
+expected and handled:
+
+- **One parcel per tracking code.** Every email that mentions a code updates
+  that one parcel, whoever sent it. Codes that say who their carrier is
+  (PostNL's 3S…, DHL's JVGL…/JJD…, UPS's 1Z…) set the carrier themselves.
+- **Split orders**: an email with several tracking codes gives several parcels.
+- **The same email twice** (a retry, or forwarded from two addresses) is
+  recognised by its Message-ID and processed once.
+- **Order doesn't matter**: status only moves forward (except a newer "delivery
+  failed"; "delivered" is final), and dates and windows come from the newest
+  email, so a late "shipped" email can't undo "out for delivery today".
+- **A rescheduled day** replaces the old one and clears the old window.
+- **Emails at the same moment** about the same parcel wait for each other
+  (a short lock per parcel), so neither overwrites the other.
+- **Newsletters** to shipping@ are filtered out by keywords before any Claude
+  call, so they cost nothing.
+
 Proton first sends a "do you accept forwarding?" email to the Postmark
 address. The pipeline keeps its link: open `/api/inbox?token=FEED_TOKEN`,
 which also shows the last 25 emails and what happened to each.

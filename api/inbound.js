@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const {normalise, forwardingConfirmation} = require('../lib/mail');
-const {askClaude, validate, verifyDhl, merge, stale, placeOf} = require('../lib/parcels');
-const {getParcels, putParcel, deleteParcels, logInbound} = require('../lib/store');
+const {askClaude, validate, verifyDhl, merge, stale, placeOf, looksLikeShipping} = require('../lib/parcels');
+const {getParcels, putParcel, deleteParcels, logInbound, seenBefore, markSeen, withLock} = require('../lib/store');
 const {send} = require('../lib/http');
 
 /**
@@ -33,28 +33,58 @@ async function readBody(req) {
 async function handle(mail, env = process.env) {
 	const entry = {at: new Date().toISOString(), from: mail.from, subject: mail.subject.slice(0, 140)};
 
+	// The same email twice (a Postmark retry, or forwarded from two addresses).
+	if (await seenBefore(mail.id, env)) {
+		await logInbound({...entry, result: 'skipped: this email was already processed'}, env);
+		return {result: 'duplicate'};
+	}
+	const done = async (result, extra = {}) => {
+		await logInbound({...entry, result, ...extra}, env);
+		await markSeen(mail.id, env);
+	};
+
 	// Proton's "accept forwarding" email: keep the link where you can click it.
 	const confirm = forwardingConfirmation(mail);
 	if (confirm) {
-		await logInbound({...entry, result: 'forwarding confirmation: open the link to accept', link: confirm.link}, env);
+		await done('forwarding confirmation: open the link to accept', {link: confirm.link});
 		return {result: 'forwarding-confirmation'};
 	}
 
-	const reading = validate(await askClaude(mail, env), mail);
-	if (reading.rejected) {
-		await logInbound({...entry, result: `ignored: ${reading.rejected}`}, env);
-		return {result: 'ignored', reason: reading.rejected};
+	// Newsletters to the shipping address don't cost a Claude call.
+	if (!looksLikeShipping(mail)) {
+		await done('ignored: not about shipping');
+		return {result: 'ignored', reason: 'not about shipping'};
 	}
 
-	const parcels = await getParcels(env);
-	const key = `${reading.carrier}:${reading.code}`;
-	let parcel = merge(parcels.find((p) => p.key === key), reading, mail);
-	parcel.place = placeOf(parcel.postalCode, env);
-	parcel = await verifyDhl(parcel, env).catch(() => parcel);
-	await putParcel(parcel, env);
-	await deleteParcels(stale(parcels.filter((p) => p.key !== key)), env);
-	await logInbound({...entry, result: `${parcel.carrier} ${parcel.code}: ${parcel.status}${parcel.place && parcel.place !== 'home' ? ` (for ${parcel.place})` : ''}${parcel.verified ? ' (confirmed by carrier)' : ''}`}, env);
-	return {result: 'parcel', key, status: parcel.status};
+	const {readings, rejected} = validate(await askClaude(mail, env), mail);
+	if (!readings.length) {
+		await done(`ignored: ${rejected.join('; ')}`);
+		return {result: 'ignored', reason: rejected.join('; ')};
+	}
+
+	// One email can be about several parcels (a split order); each is merged
+	// under its own lock, keyed by tracking code alone, so the shop's email and
+	// the carrier's email about the same parcel end up as one.
+	const results = [];
+	for (const reading of readings) {
+		const parcel = await withLock(reading.code, async () => {
+			const all = await getParcels(env);
+			const existing = all.find((p) => p.code === reading.code);
+			let next = merge(existing, reading, mail);
+			next.place = placeOf(next.postalCode, env);
+			next = await verifyDhl(next, env).catch(() => next);
+			await putParcel(next, env);
+			if (existing && existing.key !== next.key) await deleteParcels([existing.key], env); // older carrier:code keys
+			return next;
+		}, env);
+		results.push(parcel);
+	}
+	const all = await getParcels(env);
+	await deleteParcels(stale(all.filter((p) => !results.some((r) => r.key === p.key))), env);
+
+	const describe = (p) => `${p.carrier} ${p.code}: ${p.status}${p.place && p.place !== 'home' ? ` (for ${p.place})` : ''}${p.verified ? ' (confirmed by carrier)' : ''}`;
+	await done([...results.map(describe), ...rejected.map((r) => `skipped ${r}`)].join('; '));
+	return {result: 'parcel', parcels: results.map((p) => ({key: p.key, status: p.status}))};
 }
 
 module.exports = async function handler(req, res) {

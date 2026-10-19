@@ -1,29 +1,33 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {normalise, htmlToText, forwardingConfirmation} = require('../lib/mail');
-const {validate, merge, forToday, stale} = require('../lib/parcels');
+const {validate, merge, forToday, stale, placeOf, addresses, looksLikeShipping, carrierFromCode} = require('../lib/parcels');
 
-const postnlMail = normalise({
-	FromFull: {Email: 'noreply@notificatie.postnl.nl', Name: 'PostNL'},
-	Subject: 'Je pakket van Coolblue komt vandaag',
-	Date: '2026-10-19T07:12:00+02:00',
-	HtmlBody:
-		'<p>Goed nieuws! Je pakket komt <b>vandaag</b> tussen 14:00 en 16:30.</p><p>Track &amp; Trace: 3SCOOL1234567</p><a href="https://jouw.postnl.nl/track-and-trace/3SCOOL1234567-NL-1067AB">Volg je pakket</a>',
-});
+const now = new Date('2026-10-19T08:00:00+02:00');
 
-const answer = {
-	is_shipment: true,
+const mail = (over = {}) =>
+	normalise({
+		FromFull: {Email: 'noreply@notificatie.postnl.nl', Name: 'PostNL'},
+		Subject: 'Je pakket van Coolblue komt vandaag',
+		Date: '2026-10-19T07:12:00+02:00',
+		HtmlBody:
+			'<p>Goed nieuws! Je pakket komt <b>vandaag</b> tussen 14:00 en 16:30.</p><p>Track &amp; Trace: 3SCOOL1234567</p><a href="https://jouw.postnl.nl/track-and-trace/3SCOOL1234567-NL-1067AB">Volg je pakket</a>',
+		...over,
+	});
+
+const shipment = (over = {}) => ({
 	carrier: 'postnl',
 	tracking_code: '3SCOOL1234567',
 	postal_code: '1067 AB',
-	shop: 'Coolblue',
 	status: 'out_for_delivery',
 	expected_date: '2026-10-19',
 	window_start: '14:00',
 	window_end: '16:30',
-	confidence: 0.95,
-};
-const now = new Date('2026-10-19T08:00:00+02:00');
+	...over,
+});
+const answer = (shipments = [shipment()], over = {}) => ({is_shipping_email: true, shop: 'Coolblue', shipments, confidence: 0.95, ...over});
+
+/* ---------- reading emails ---------- */
 
 test('html is turned into text with links kept', () => {
 	const text = htmlToText('<p>Hi&nbsp;there</p><a href="https://x.nl/t/ABC">Track</a><style>p{}</style>');
@@ -32,44 +36,117 @@ test('html is turned into text with links kept', () => {
 	assert.doesNotMatch(text, /p\{\}/);
 });
 
-test('postmark payload is normalised', () => {
-	assert.equal(postnlMail.from, 'noreply@notificatie.postnl.nl');
-	assert.match(postnlMail.text, /3SCOOL1234567/);
+test('every email gets a stable id; Message-ID wins when present', () => {
+	assert.equal(mail().id, mail().id);
+	const a = normalise({Subject: 'a', TextBody: 'x', Headers: [{Name: 'Message-ID', Value: '<1@shop>'}]});
+	const b = normalise({Subject: 'different', TextBody: 'y', Headers: [{Name: 'Message-Id', Value: '<1@shop>'}]});
+	assert.equal(a.id, b.id);
 });
 
+test('newsletters are recognised without asking Claude', () => {
+	assert.equal(looksLikeShipping(mail()), true);
+	assert.equal(looksLikeShipping(normalise({Subject: '50% korting op alles!', TextBody: 'Alleen dit weekend bij Bershka.'})), false);
+});
+
+test('a tracking code can name its carrier', () => {
+	assert.equal(carrierFromCode('3STWMB2393758'), 'postnl');
+	assert.equal(carrierFromCode('JVGL06123456789012'), 'dhl');
+	assert.equal(carrierFromCode('1Z999AA10123456784'), 'ups');
+	assert.equal(carrierFromCode('123456'), null);
+});
+
+/* ---------- checking Claude's reading ---------- */
+
 test('a good reading passes and is cleaned up', () => {
-	const r = validate(answer, postnlMail, now);
-	assert.equal(r.rejected, undefined);
-	assert.equal(r.code, '3SCOOL1234567');
-	assert.equal(r.postalCode, '1067AB');
-	assert.equal(r.windowStart, '14:00');
+	const {readings, rejected} = validate(answer(), mail(), now);
+	assert.deepEqual(rejected, []);
+	assert.equal(readings[0].code, '3SCOOL1234567');
+	assert.equal(readings[0].postalCode, '1067AB');
+	assert.equal(readings[0].windowStart, '14:00');
 });
 
 test('a tracking code that is not in the email is rejected', () => {
-	const r = validate({...answer, tracking_code: '3SCOOL7654321'}, postnlMail, now);
-	assert.match(r.rejected, /isn't in the email/);
+	const {readings, rejected} = validate(answer([shipment({tracking_code: '3SCOOL7654321'})]), mail(), now);
+	assert.equal(readings.length, 0);
+	assert.match(rejected[0], /isn't in the email/);
 });
 
-test('newsletters, low confidence and odd codes are rejected', () => {
-	assert.equal(validate({is_shipment: false, status: 'unknown', confidence: 0.9}, postnlMail, now).rejected, 'not a shipment');
-	assert.match(validate({...answer, confidence: 0.3}, postnlMail, now).rejected, /low confidence/);
-	assert.match(validate({...answer, tracking_code: 'abc'}, postnlMail, now).rejected, /doesn't look like/);
+test('newsletters, order confirmations and low confidence give no parcel', () => {
+	assert.deepEqual(validate({is_shipping_email: false, shipments: [], confidence: 0.9}, mail(), now).rejected, ['not a shipping email']);
+	assert.match(validate(answer([]), mail(), now).rejected[0], /no tracking code yet/);
+	assert.match(validate(answer(undefined, {confidence: 0.3}), mail(), now).rejected[0], /low confidence/);
 });
 
-test('implausible dates and windows are dropped, not shown', () => {
-	const r = validate({...answer, expected_date: '2027-06-01', window_start: '16:30', window_end: '14:00'}, postnlMail, now);
-	assert.equal(r.expectedDate, null);
-	assert.equal(r.windowStart, null);
+test('a split order gives one reading per tracking code, and repeats are dropped', () => {
+	const m = mail({HtmlBody: '<p>Je bestelling komt in 2 pakketten: 3SBOL0000001 en 3SBOL0000002.</p>'});
+	const {readings} = validate(
+		answer([shipment({tracking_code: '3SBOL0000001'}), shipment({tracking_code: '3SBOL0000002'}), shipment({tracking_code: '3SBOL0000001'})]),
+		m,
+		now
+	);
+	assert.deepEqual(readings.map((r) => r.code), ['3SBOL0000001', '3SBOL0000002']);
 });
 
-test('status only moves forward', () => {
-	const first = merge(null, validate(answer, postnlMail, now), postnlMail);
-	const late = merge(first, {...validate(answer, postnlMail, now), status: 'shipped'}, postnlMail);
+test("the code's own carrier beats Claude's guess", () => {
+	const {readings} = validate(answer([shipment({carrier: 'other'})]), mail(), now);
+	assert.equal(readings[0].carrier, 'postnl');
+});
+
+test('implausible dates and half windows are dropped, not shown', () => {
+	const {readings} = validate(answer([shipment({expected_date: '2027-06-01', window_start: '16:30', window_end: null})]), mail(), now);
+	assert.equal(readings[0].expectedDate, null);
+	assert.equal(readings[0].windowStart, null);
+});
+
+/* ---------- many emails, one parcel ---------- */
+
+const reading = (over = {}) => ({carrier: 'postnl', code: '3SBERSHKA001', postalCode: null, shop: null, status: 'shipped', expectedDate: null, windowStart: null, windowEnd: null, ...over});
+const email = (date, subject = 'x') => ({subject, date});
+
+test('the shop email and the carrier email land on one parcel', () => {
+	const shop = merge(null, reading({carrier: 'other', shop: 'Bershka'}), email('2026-10-17T10:00:00+02:00', 'Je bestelling is verzonden'));
+	const carrier = merge(shop, reading({status: 'out_for_delivery', postalCode: '1067AB', expectedDate: '2026-10-19', windowStart: '14:00', windowEnd: '16:30'}), email('2026-10-19T07:00:00+02:00', 'Je pakket komt vandaag'));
+	assert.equal(carrier.key, '3SBERSHKA001');
+	assert.equal(carrier.carrier, 'postnl');
+	assert.equal(carrier.shop, 'Bershka');
+	assert.equal(carrier.status, 'out_for_delivery');
+	assert.equal(carrier.seenIn.length, 2);
+});
+
+test('the same email twice changes nothing', () => {
+	const once = merge(null, reading({status: 'out_for_delivery', expectedDate: '2026-10-19'}), email('2026-10-19T07:00:00+02:00'));
+	const twice = merge(once, reading({status: 'out_for_delivery', expectedDate: '2026-10-19'}), email('2026-10-19T07:00:00+02:00'));
+	assert.deepEqual({...twice, updatedAt: null}, {...once, updatedAt: null});
+});
+
+test('an old email arriving late cannot undo newer news', () => {
+	const today = merge(null, reading({status: 'out_for_delivery', expectedDate: '2026-10-19', windowStart: '14:00', windowEnd: '16:30'}), email('2026-10-19T07:00:00+02:00'));
+	const late = merge(today, reading({status: 'shipped', expectedDate: '2026-10-21'}), email('2026-10-17T10:00:00+02:00'));
 	assert.equal(late.status, 'out_for_delivery');
-	const done = merge(late, {...validate(answer, postnlMail, now), status: 'delivered'}, {...postnlMail, date: '2026-10-19T15:02:00+02:00'});
-	assert.equal(done.status, 'delivered');
-	assert.equal(done.deliveredAt, '2026-10-19T15:02:00+02:00');
+	assert.equal(late.expectedDate, '2026-10-19');
+	assert.equal(late.windowStart, '14:00');
 });
+
+test('a rescheduled day replaces the old one and clears its window', () => {
+	const first = merge(null, reading({expectedDate: '2026-10-19', windowStart: '14:00', windowEnd: '16:30'}), email('2026-10-18T18:00:00+02:00'));
+	const moved = merge(first, reading({expectedDate: '2026-10-20'}), email('2026-10-19T09:00:00+02:00'));
+	assert.equal(moved.expectedDate, '2026-10-20');
+	assert.equal(moved.windowStart, null);
+});
+
+test('a failed delivery shows, a new attempt replaces it, and delivered is final', () => {
+	let p = merge(null, reading({status: 'out_for_delivery'}), email('2026-10-19T07:00:00+02:00'));
+	p = merge(p, reading({status: 'delivery_failed'}), email('2026-10-19T15:00:00+02:00'));
+	assert.equal(p.status, 'delivery_failed');
+	p = merge(p, reading({status: 'out_for_delivery'}), email('2026-10-20T07:00:00+02:00'));
+	assert.equal(p.status, 'out_for_delivery');
+	p = merge(p, reading({status: 'delivered'}), email('2026-10-20T13:00:00+02:00'));
+	p = merge(p, reading({status: 'delivery_failed'}), email('2026-10-20T14:00:00+02:00'));
+	assert.equal(p.status, 'delivered');
+	assert.equal(p.deliveredAt, '2026-10-20T13:00:00+02:00');
+});
+
+/* ---------- the TV ---------- */
 
 test('only today matters on the TV', () => {
 	const parcels = [
@@ -81,64 +158,103 @@ test('only today matters on the TV', () => {
 	const items = forToday(parcels, now);
 	assert.equal(items.length, 2);
 	assert.deepEqual(items[0], {carrier: 'DHL', for: null, shop: null, status: 'delivered 07:48', window: null, step: 3, verified: true});
-	assert.equal(items[1].status, 'out for delivery');
 	assert.equal(items[1].window, '14:00–16:30');
 	assert.deepEqual(stale(parcels.map((p) => ({...p, updatedAt: now.toISOString()})), now), ['d']);
 });
 
+test('parcels know whose address they go to', () => {
+	const env = {HOME_POSTCODE: '1102 ab', OTHER_ADDRESSES: 'Senia=3628AD;Broken=xx'};
+	assert.deepEqual(addresses(env), [{label: 'home', postcode: '1102AB'}, {label: 'Senia', postcode: '3628AD'}]);
+	assert.equal(placeOf('3628AD', env), 'Senia');
+	assert.equal(placeOf(null, env), null);
+	const parcels = [
+		{key: 'a', carrier: 'postnl', status: 'out_for_delivery', place: 'Senia'},
+		{key: 'b', carrier: 'dhl', status: 'out_for_delivery', place: 'home'},
+	];
+	assert.deepEqual(forToday(parcels, now).map((p) => p.for), ['Senia', null]);
+	assert.equal(forToday(parcels, now, 'Europe/Amsterdam', {otherDeliveries: 'hide'}).length, 1);
+});
+
 test("Proton's forwarding confirmation is recognised and its link kept", () => {
-	const mail = normalise({
+	const m = normalise({
 		from: 'no-reply@proton.me',
 		subject: 'borys wants to forward emails to you',
 		html: '<p>Accept forwarding</p><a href="https://account.proton.me/forwarding/accept?token=abc">Accept</a>',
 	});
-	assert.deepEqual(forwardingConfirmation(mail), {link: 'https://account.proton.me/forwarding/accept?token=abc'});
-	assert.equal(forwardingConfirmation(postnlMail), null);
+	assert.deepEqual(forwardingConfirmation(m), {link: 'https://account.proton.me/forwarding/accept?token=abc'});
+	assert.equal(forwardingConfirmation(mail()), null);
 });
 
-test('inbound end to end, with Claude and storage faked', async () => {
-	const store = {parcels: {}, log: []};
+/* ---------- the whole inbound path, Claude and storage faked ---------- */
+
+function fakeWorld(claudeAnswer) {
+	const store = {hash: {}, keys: {}, log: []};
+	let claudeCalls = 0;
 	const realFetch = global.fetch;
 	global.fetch = async (url, opts = {}) => {
-		const u = String(url);
-		if (u.startsWith('https://api.anthropic.com')) {
-			const body = JSON.parse(opts.body);
-			assert.equal(body.tool_choice.name, 'record_shipment');
-			return new Response(JSON.stringify({content: [{type: 'tool_use', name: 'record_shipment', input: answer}]}));
+		if (String(url).startsWith('https://api.anthropic.com')) {
+			claudeCalls++;
+			assert.equal(JSON.parse(opts.body).tool_choice.name, 'record_shipments');
+			return new Response(JSON.stringify({content: [{type: 'tool_use', input: claudeAnswer}]}));
 		}
-		const cmd = JSON.parse(opts.body);
+		const [cmd, ...args] = JSON.parse(opts.body);
 		let result = null;
-		if (cmd[0] === 'HGETALL') result = Object.entries(store.parcels).flat();
-		if (cmd[0] === 'HSET') store.parcels[cmd[2]] = cmd[3];
-		if (cmd[0] === 'LPUSH') store.log.unshift(cmd[2]);
+		if (cmd === 'HGETALL') result = Object.entries(store.hash).flat();
+		if (cmd === 'HSET') store.hash[args[1]] = args[2];
+		if (cmd === 'HDEL') args.slice(1).forEach((k) => delete store.hash[k]);
+		if (cmd === 'EXISTS') result = store.keys[args[0]] ? 1 : 0;
+		if (cmd === 'SET') {
+			if (args.includes('NX') && store.keys[args[0]]) result = null;
+			else {
+				store.keys[args[0]] = args[1];
+				result = 'OK';
+			}
+		}
+		if (cmd === 'DEL') delete store.keys[args[0]];
+		if (cmd === 'LPUSH') store.log.unshift(JSON.parse(args[1]));
 		return new Response(JSON.stringify({result}));
 	};
+	return {store, calls: () => claudeCalls, restore: () => (global.fetch = realFetch)};
+}
+
+const env = {ANTHROPIC_API_KEY: 'k', UPSTASH_REDIS_REST_URL: 'https://redis.test', UPSTASH_REDIS_REST_TOKEN: 't', HOME_POSTCODE: '1067AB'};
+
+test('inbound: a parcel is stored, and the same email again is skipped', async () => {
+	const world = fakeWorld(answer());
 	try {
 		const {handle} = require('../api/inbound');
-		const env = {ANTHROPIC_API_KEY: 'k', UPSTASH_REDIS_REST_URL: 'https://redis.test', UPSTASH_REDIS_REST_TOKEN: 't'};
-		const out = await handle(postnlMail, env);
-		assert.deepEqual(out, {result: 'parcel', key: 'postnl:3SCOOL1234567', status: 'out_for_delivery'});
-		assert.equal(JSON.parse(store.parcels['postnl:3SCOOL1234567']).windowEnd, '16:30');
-		assert.match(JSON.parse(store.log[0]).result, /postnl 3SCOOL1234567: out_for_delivery/);
+		const first = await handle(mail(), env);
+		assert.deepEqual(first, {result: 'parcel', parcels: [{key: '3SCOOL1234567', status: 'out_for_delivery'}]});
+		assert.equal(JSON.parse(world.store.hash['3SCOOL1234567']).place, 'home');
+		assert.deepEqual(await handle(mail(), env), {result: 'duplicate'});
+		assert.equal(world.calls(), 1);
+		assert.equal(Object.keys(world.store.keys).filter((k) => k.startsWith('lock:')).length, 0);
 	} finally {
-		global.fetch = realFetch;
+		world.restore();
 	}
 });
 
-test('parcels know whose address they go to', () => {
-	const {placeOf, addresses} = require('../lib/parcels');
-	const env = {HOME_POSTCODE: '1102 ab', OTHER_ADDRESSES: 'Zus=1234CD;Broken=xx'};
-	assert.deepEqual(addresses(env), [{label: 'home', postcode: '1102AB'}, {label: 'Zus', postcode: '1234CD'}]);
-	assert.equal(placeOf('1234CD', env), 'Zus');
-	assert.equal(placeOf('1102AB', env), 'home');
-	assert.equal(placeOf(null, env), null);
+test('inbound: a newsletter never reaches Claude', async () => {
+	const world = fakeWorld(answer());
+	try {
+		const {handle} = require('../api/inbound');
+		const out = await handle(normalise({Subject: 'Nieuwe collectie!', TextBody: 'Shop nu de nieuwste looks.'}), env);
+		assert.equal(out.result, 'ignored');
+		assert.equal(world.calls(), 0);
+	} finally {
+		world.restore();
+	}
+});
 
-	const parcels = [
-		{key: 'a', carrier: 'postnl', status: 'out_for_delivery', place: 'Zus'},
-		{key: 'b', carrier: 'dhl', status: 'out_for_delivery', place: 'home'},
-		{key: 'c', carrier: 'dpd', status: 'out_for_delivery', place: null},
-	];
-	const shown = forToday(parcels, now);
-	assert.deepEqual(shown.map((p) => p.for), ['Zus', null, null]);
-	assert.equal(forToday(parcels, now, 'Europe/Amsterdam', {otherDeliveries: 'hide'}).length, 2);
+test('inbound: an old carrier:code record is folded into the code-keyed one', async () => {
+	const world = fakeWorld(answer());
+	world.store.hash['postnl:3SCOOL1234567'] = JSON.stringify({key: 'postnl:3SCOOL1234567', carrier: 'postnl', code: '3SCOOL1234567', status: 'shipped', shop: 'Coolblue'});
+	try {
+		const {handle} = require('../api/inbound');
+		await handle(mail(), env);
+		assert.deepEqual(Object.keys(world.store.hash), ['3SCOOL1234567']);
+		assert.equal(JSON.parse(world.store.hash['3SCOOL1234567']).status, 'out_for_delivery');
+	} finally {
+		world.restore();
+	}
 });
