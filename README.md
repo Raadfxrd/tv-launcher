@@ -80,10 +80,33 @@ right away (OK reloads it), handy while tweaking the design.
 - Trains on the route are checked against the NS departures board for delays,
   platform changes and cancellations; the card turns amber when that happens.
 
+## Parcels
+
+Give shops **shipping@borysbabas.dev** when you order. That Proton address
+forwards everything to a Postmark inbound address, and Postmark posts each
+email to `/api/inbound?token=INBOUND_TOKEN`.
+
+1. Claude reads the email into a fixed form: shipment or not, carrier,
+   tracking code, postcode, shop, status, expected day and window.
+2. The reading is checked before it's believed: the tracking code must appear
+   in the email itself, look like a tracking code, and dates and windows must
+   make sense. Low-confidence readings are logged, not shown.
+3. DHL parcels are confirmed with DHL's tracking API, and re-checked every
+   15 minutes while the TV is on. PostNL follows PostNL's own emails.
+4. The TV only shows parcels that matter today: out for delivery, expected
+   today, or delivered today.
+
+Proton first sends a "do you accept forwarding?" email to the Postmark
+address. The pipeline keeps its link: open `/api/inbox?token=FEED_TOKEN`,
+which also shows the last 25 emails and what happened to each.
+
+For shops that still have info@ or Gmail, add a filtered forward on that
+address straight to the Postmark address (one hop; Proton doesn't forward a
+forwarded email again). Later, a Proton Mail Bridge poller can post the same
+`{from, subject, html, date}` shape to `/api/inbound` instead.
+
 ## Not built yet
 
-- **Packages**: reading shipping emails and tracking PostNL/DHL. The page
-  already has the card; `/api/feed` returns `packages.configured: false`.
 - **The launcher home screen** (replacing Projectivy).
 - **Lite mode**: if the frosted cards stutter on the A1, add `&lite=1` to the
   page URL to drop the blur.

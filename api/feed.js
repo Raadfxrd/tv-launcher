@@ -3,6 +3,8 @@ const {pickNextUp, parsePlaces} = require('../lib/nextup');
 const {tripTo} = require('../lib/travel');
 const {loadWeather} = require('../lib/weather');
 const {authorised, send, deny} = require('../lib/http');
+const {config: storeConfig, getParcels, putParcel} = require('../lib/store');
+const {forToday, verifyDhl} = require('../lib/parcels');
 
 /**
  * GET /api/feed?token=…  — everything the screensaver shows, in one answer.
@@ -36,11 +38,29 @@ async function nextUp(env, now) {
 	return {configured: true, ...pick, trip, errors: calendar.errors};
 }
 
+/* Today's parcels. Active DHL parcels are re-checked with DHL at most every
+   15 minutes, so "out for delivery" and the window stay current between emails. */
+async function packages(env, now) {
+	if (!storeConfig(env)) return {configured: false, items: []};
+	const parcels = await getParcels(env);
+	const due = parcels.filter(
+		(p) => p.carrier === 'dhl' && p.status !== 'delivered' && (!p.checkedAt || now - Date.parse(p.checkedAt) > 15 * 60000)
+	);
+	await Promise.all(
+		due.map(async (p) => {
+			const fresh = await verifyDhl(p, env).catch(() => p);
+			Object.assign(p, fresh);
+			await putParcel(p, env).catch(() => null);
+		})
+	);
+	return {configured: true, items: forToday(parcels, now, env.HOME_TIMEZONE || 'Europe/Amsterdam')};
+}
+
 module.exports = async function handler(req, res) {
 	if (!authorised(req)) return deny(res);
 	const env = process.env;
 	const now = new Date();
-	const [next, weather] = await Promise.allSettled([nextUp(env, now), loadWeather(env)]);
+	const [next, weather, parcels] = await Promise.allSettled([nextUp(env, now), loadWeather(env), packages(env, now)]);
 	send(
 		res,
 		200,
@@ -48,8 +68,7 @@ module.exports = async function handler(req, res) {
 			generatedAt: now.toISOString(),
 			nextUp: next.status === 'fulfilled' ? next.value : {configured: true, error: next.reason?.message || String(next.reason)},
 			weather: weather.status === 'fulfilled' ? weather.value : {configured: true, error: weather.reason?.message || String(weather.reason)},
-			// Package tracking reads shipping emails; not built yet.
-			packages: {configured: false, items: []},
+			packages: parcels.status === 'fulfilled' ? parcels.value : {configured: true, items: [], error: parcels.reason?.message || String(parcels.reason)},
 		},
 		CACHE_SECONDS
 	);
