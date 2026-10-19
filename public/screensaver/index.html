@@ -4,86 +4,147 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=1920, height=1080, initial-scale=1">
 <title>Screensaver</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="preload" href="/fonts/iosevka-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* Iosevka for numbers and times, Iosevka Aile (the proportional member of
+     the same family) for words. Served from this site, Latin-only subsets
+     of ~22 KB each, so the TV never waits on a font CDN. OFL licensed. */
+  @font-face { font-family: 'Iosevka'; font-weight: 300; font-style: normal; font-display: swap; src: url('/fonts/iosevka-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/iosevka-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/iosevka-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 300; font-style: normal; font-display: swap; src: url('/fonts/iosevka-aile-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/iosevka-aile-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Iosevka Aile'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/iosevka-aile-latin-500-normal.woff2') format('woff2'); }
   :root {
     --text: #F2F2F0;
-    --muted: #B4B4B8;
+    --muted: #BDBDC2;            /* a step brighter than flat grey: it sits on glass over photos */
+    --dim: #7C7C82;
     --accent: #7FB2FF;
     --warn: #FFB547;
-    --glass: rgba(8, 8, 10, 0.62);
+    --glass: rgba(8, 8, 10, 0.6);
     --line: rgba(255, 255, 255, 0.08);
+    --edge: rgba(255, 255, 255, 0.14);
+    /* Critically damped feel: fast start, long soft settle, no overshoot.
+       Nothing here is touched, so nothing earns a bounce. */
+    --settle: cubic-bezier(0.22, 1, 0.36, 1);
+    --kb: 65s;                   /* Ken Burns zoom: a little longer than a photo stays */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Geist', system-ui, sans-serif; cursor: none; }
-  .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
-  /* Photos: two layers that crossfade, each with a slow zoom. */
-  .photo { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; opacity: 0; transform: scale(1); transition: opacity 2.4s ease, transform 60s linear; }
-  .photo.on { opacity: 1; transform: scale(1.06); }
-  .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.45) 40%, rgba(0,0,0,.05) 70%), linear-gradient(to right, rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 45%); transition: opacity 2s ease; }
+  /* ---------- photos ----------
+     Two layers crossfade. The incoming photo zooms slowly; the outgoing one
+     keeps its zoom while it fades (no snap back), then resets unseen. */
+  .photo { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; opacity: 0; transform: scale(1); will-change: opacity, transform; }
+  .photo.on { opacity: 1; transform: scale(1.06); transition: opacity 2.4s ease, transform var(--kb) linear; }
+  .photo.leaving { opacity: 0; transform: scale(1.06); transition: opacity 2.4s ease; }
+  .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.45) 40%, rgba(0,0,0,.05) 70%), linear-gradient(to right, rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 45%), linear-gradient(to bottom, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 18%); transition: opacity 3s ease; }
 
-  /* Everything shifts a few pixels now and then so nothing sits still on the OLED. */
-  .stage { position: absolute; inset: 0; padding: 120px 140px 110px; display: flex; justify-content: space-between; align-items: flex-end; transition: transform 4s ease; }
+  /* ---------- layout ----------
+     The whole stage drifts a few pixels every two minutes so nothing sits
+     still on the OLED. Slow ease-in-out: you never see it move. */
+  .stage { position: absolute; inset: 0; padding: 120px 140px 110px; display: flex; justify-content: space-between; align-items: flex-end; transition: transform 6s cubic-bezier(.45, 0, .55, 1); }
   .left { display: flex; flex-direction: column; gap: 18px; text-shadow: 0 2px 24px rgba(0,0,0,.45); }
-  .clock { font-size: 240px; font-weight: 300; letter-spacing: -10px; line-height: .9; font-variant-numeric: tabular-nums; }
-  .date { font-size: 36px; color: #D6D6D2; padding-left: 8px; }
-  .status { display: flex; align-items: center; gap: 32px; font-size: 26px; color: #D6D6D2; padding: 28px 0 0 8px; }
+
+  /* Type: tracking tightens as size grows, body stays near zero. */
+  .clock { font-family: 'Iosevka', ui-monospace, monospace; font-size: 260px; font-weight: 300; letter-spacing: -0.03em; line-height: .9; font-variant-numeric: tabular-nums; transform-origin: left bottom; transition: transform 3s var(--settle), color 3s ease; display: flex; }
+  .clock span { display: inline-block; }
+  .date { font-size: 36px; letter-spacing: -0.005em; color: #D6D6D2; padding-left: 8px; transition: color 3s ease, transform 3s var(--settle); transform-origin: left bottom; }
+  .status { display: flex; align-items: center; gap: 32px; font-size: 26px; color: #D6D6D2; padding: 28px 0 0 8px; transition: opacity 1.5s ease; }
   .status span { display: flex; align-items: center; gap: 12px; }
 
+  /* ---------- cards ----------
+     Glass that reads as a thick material: blur, a bright top edge where
+     light catches it, and a soft deep shadow. Cards materialise (rise,
+     scale up, fade in) rather than just appearing, and leave the same way. */
   .right { display: flex; flex-direction: column; gap: 24px; width: 760px; }
-  .card { border-radius: 28px; background: var(--glass); -webkit-backdrop-filter: blur(28px); backdrop-filter: blur(28px); border: 1px solid var(--line); padding: 34px 38px; display: flex; flex-direction: column; gap: 22px; }
-  .lite .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 8, 10, .82); }
+  .card {
+    position: relative;
+    border-radius: 28px; background: var(--glass);
+    -webkit-backdrop-filter: blur(28px) saturate(140%); backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid var(--line); border-top-color: var(--edge);
+    box-shadow: 0 30px 80px rgba(0,0,0,.35);
+    padding: 34px 38px; display: flex; flex-direction: column; gap: 22px;
+    opacity: 0; transform: translateY(28px) scale(.97); transform-origin: 50% 100%;
+    transition: opacity .5s ease, transform .9s var(--settle), background 2s ease, border-color 2s ease, box-shadow 2s ease;
+    will-change: opacity, transform;
+  }
+  .card.in { opacity: 1; transform: none; }
+  .card.gone { display: none; }
+  .card .inner { display: flex; flex-direction: column; gap: inherit; transition: opacity .28s ease, transform .5s var(--settle); }
+  .card.swap .inner { opacity: 0; transform: translateY(6px); }
+  .lite .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 8, 10, .84); }
+
   .row { display: flex; align-items: center; gap: 14px; }
   .between { justify-content: space-between; }
-  .label { font-size: 22px; color: var(--muted); }
-  .title { font-size: 36px; font-weight: 500; letter-spacing: -.5px; }
+  .label { font-size: 22px; letter-spacing: 0.01em; color: var(--muted); }
+  .title { font-size: 36px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.15; }
   .sub { font-size: 24px; color: var(--muted); }
   .leave { display: flex; align-items: baseline; gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); }
   .leave .sub { white-space: nowrap; }
-  .leave b { white-space: nowrap; font-size: 52px; font-weight: 500; letter-spacing: -1px; color: var(--accent); }
+  .leave b { font-family: 'Iosevka', ui-monospace, monospace; white-space: nowrap; font-size: 52px; font-weight: 500; letter-spacing: -0.02em; color: var(--accent); transition: color .8s ease; }
   .leave.late b, .warn { color: var(--warn); }
   .legs { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; font-size: 24px; color: var(--muted); }
   .legs .ride { color: var(--text); }
   .legs .leg { display: flex; align-items: center; gap: 8px; }
 
   .feed { padding: 28px 32px; gap: 24px; }
-  .art { width: 92px; height: 92px; flex-shrink: 0; border-radius: 14px; background: #1A1A1E center / cover no-repeat; }
+  .art { width: 92px; height: 92px; flex-shrink: 0; border-radius: 14px; background: #1A1A1E center / cover no-repeat; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
   .grow { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track { font-size: 28px; font-weight: 500; letter-spacing: -0.008em; }
+  .progress { display: flex; align-items: center; gap: 12px; padding-top: 8px; font-size: 16px; color: var(--muted); }
   .bar { flex-grow: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); overflow: hidden; }
-  .bar i { display: block; height: 3px; background: var(--text); }
+  /* The bar fills by transform, not width: compositor-only, and the linear
+     transition spans exactly one poll so it moves continuously. */
+  .bar i { display: block; height: 3px; background: var(--text); transform-origin: left center; transform: scaleX(0); transition: transform 2s linear; }
   .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); }
+  .steps i { height: 3px; border-radius: 2px; background: rgba(255,255,255,.14); transition: background .8s ease; }
   .steps i.done { background: var(--accent); }
   .divider { height: 1px; background: var(--line); }
-  .credit { position: absolute; top: 48px; right: 132px; padding: 6px 14px; border-radius: 16px; background: rgba(0,0,0,.35); font-size: 18px; color: rgba(255,255,255,.8); transition: opacity 2s ease; }
-  .hidden { display: none !important; }
 
-  /* Night: no photos, no cards except music, dimmed clock that wanders. */
-  .night .photo, .night .shade, .night .credit { opacity: 0 !important; }
-  .night .clock { font-size: 180px; letter-spacing: -8px; color: #7C7C82; text-shadow: none; }
-  .night .date, .night .status { color: #7C7C82; text-shadow: none; }
-  .night .status, .night .nextup { display: none !important; }
-  .night .card { background: transparent; border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; color: #8A8A8F; }
+  .credit { position: absolute; top: 48px; right: 132px; padding: 6px 14px; border-radius: 16px; background: rgba(0,0,0,.35); font-size: 18px; letter-spacing: 0.01em; color: rgba(255,255,255,.82); opacity: 0; transition: opacity .8s ease; }
+  .credit.in { opacity: 1; }
+
+  /* ---------- night ----------
+     No photos, dim everything, shrink the clock (by transform, so it glides
+     rather than reflowing), and let only music stay. Everything eases over
+     seconds: no brightness jumps in a dark room. */
+  .night .photo, .night .shade, .night .credit { opacity: 0 !important; transition: opacity 4s ease !important; }
+  .night .clock { transform: scale(.75); color: var(--dim); text-shadow: none; }
+  .night .date { color: var(--dim); text-shadow: none; transform: translateY(-4px); }
+  .night .status { opacity: 0; }
+  .night .card { background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: #8A8A8F; }
+  .night .card .sub, .night .card .progress { color: var(--dim); }
+
+  /* ---------- accessibility settings, if the TV ever reports them ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .card { transform: none !important; transition: opacity .4s ease, background 2s ease; }
+    .photo.on { transform: none; transition: opacity 2.4s ease; }
+    .photo.leaving { transform: none; }
+    .clock, .date { transform: none !important; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 8, 10, .9); }
+  }
 </style>
 </head>
 <body>
   <img class="photo" id="photoA" alt="">
   <img class="photo" id="photoB" alt="">
   <div class="shade" id="shade"></div>
-  <div class="credit hidden" id="credit"></div>
+  <div class="credit" id="credit"></div>
 
   <main class="stage" id="stage">
     <section class="left">
-      <div class="clock" id="clock">--:--</div>
+      <div class="clock" id="clock" aria-label="Time"></div>
       <div class="date" id="date"></div>
       <div class="status" id="status"></div>
     </section>
-    <section class="right">
-      <div class="card nextup hidden" id="nextup"></div>
-      <div class="card feed hidden" id="feed"></div>
+    <section class="right" id="right">
+      <div class="card nextup gone" id="nextup"><div class="inner"></div></div>
+      <div class="card feed gone" id="feed"><div class="inner"></div></div>
     </section>
   </main>
 
@@ -96,7 +157,10 @@
   var API = params.get('api') || '';                       // defaults to this site
   var PHOTO_SECONDS = Number(params.get('photoSeconds') || 60);
   var NIGHT = (params.get('night') || '23-6').split('-').map(Number); // dark between these hours
+  var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SETTLE = 'cubic-bezier(0.22, 1, 0.36, 1)';
   if (params.get('lite') === '1') document.documentElement.classList.add('lite');
+  document.documentElement.style.setProperty('--kb', (PHOTO_SECONDS + 5) + 's');
 
   var ICON = {
     cloud: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 13.5 3.5 3.5 0 0 0 7 19z"/></svg>',
@@ -109,7 +173,8 @@
     note: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6E6E74" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
   };
 
-  /* Small DOM helper: text always goes in as text, never as HTML. */
+  /* Small DOM helpers: text always goes in as text, never as HTML. */
+  var $ = function (id) { return document.getElementById(id); };
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -117,28 +182,123 @@
     return n;
   }
   function icon(name) { var s = el('span'); s.innerHTML = ICON[name]; s.style.display = 'flex'; return s; }
-  function hhmm(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hhmm(d) { d = new Date(d); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
   function minsUntil(iso) { return Math.round((Date.parse(iso) - Date.now()) / 60000); }
+  function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
 
-  /* ---------- clock, date, night mode, drift ---------- */
-  var $ = function (id) { return document.getElementById(id); };
+  /* ================= motion =================
+     Cards enter and leave along the same path (rise in from below, sink back
+     down), and when one comes or goes the other glides to its new place
+     instead of jumping (FLIP). CSS transitions here start from the current
+     on-screen value, so a card that's told to leave mid-entrance simply
+     turns around. */
+  var cards = [$('nextup'), $('feed')];
+
+  function visible(card) { return !card.classList.contains('gone'); }
+
+  function glide(change) {
+    var before = cards.map(function (c) { return visible(c) ? c.getBoundingClientRect().top : null; });
+    change();
+    cards.forEach(function (c, i) {
+      if (before[i] == null || !visible(c) || !c.classList.contains('in')) return;
+      var dy = before[i] - c.getBoundingClientRect().top;
+      if (!dy || REDUCED) return;
+      c.style.transition = 'none';
+      c.style.transform = 'translateY(' + dy + 'px)';
+      c.getBoundingClientRect();                     // commit the start position
+      c.style.transition = '';
+      c.style.transform = '';
+    });
+  }
+
+  function show(card) {
+    clearTimeout(card._leave);
+    if (visible(card) && card.classList.contains('in')) return;
+    if (!visible(card)) glide(function () { card.classList.remove('gone'); });
+    card.getBoundingClientRect();
+    requestAnimationFrame(function () { card.classList.add('in'); });
+  }
+
+  function hide(card) {
+    if (!visible(card) || card._leaving) return;
+    card.classList.remove('in');
+    card._leaving = true;
+    card._leave = setTimeout(function () {
+      card._leaving = false;
+      if (card.classList.contains('in')) return;    // it was called back in meanwhile
+      glide(function () { card.classList.add('gone'); });
+      card._key = null;
+    }, 650);
+  }
+
+  /* Content that changes identity (a new event, a new track) crossfades
+     inside the card; content that only ticks (minutes, progress) updates in
+     place, so the card never flickers. */
+  function fill(card, key, build) {
+    var inner = card.firstElementChild;
+    if (card._key === key) return false;
+    var first = card._key == null || !card.classList.contains('in');
+    card._key = key;
+    if (first || REDUCED) { inner.textContent = ''; build(inner); return true; }
+    card.classList.add('swap');
+    setTimeout(function () {
+      // The card eases to its new height instead of snapping when the content
+      // changes size. Height is layout, so the other card follows along by
+      // itself (the column is bottom-aligned): no extra glide needed.
+      var from = card.offsetHeight;
+      inner.textContent = '';
+      build(inner);
+      var to = card.offsetHeight;
+      if (from !== to && card.animate) {
+        card.style.overflow = 'hidden';
+        var a = card.animate([{height: from + 'px'}, {height: to + 'px'}], {duration: 900, easing: SETTLE});
+        a.onfinish = a.oncancel = function () { card.style.overflow = ''; };
+      }
+      requestAnimationFrame(function () { card.classList.remove('swap'); });
+    }, 280);
+    return true;
+  }
+
+  /* ================= clock ================= */
+  var clockDigits = [];
   function isNight(d) {
     var h = d.getHours();
     return NIGHT[0] > NIGHT[1] ? (h >= NIGHT[0] || h < NIGHT[1]) : (h >= NIGHT[0] && h < NIGHT[1]);
   }
   function tick() {
     var now = new Date();
-    $('clock').textContent = hhmm(now);
-    $('date').textContent = now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
-    document.body.classList.toggle('night', isNight(now));
+    var text = hhmm(now);
+    var clock = $('clock');
+    if (!clockDigits.length) {
+      for (var i = 0; i < text.length; i++) { var s = el('span', null, text[i]); clock.appendChild(s); clockDigits.push(s); }
+    } else {
+      for (var j = 0; j < text.length; j++) {
+        if (clockDigits[j].textContent === text[j]) continue;
+        clockDigits[j].textContent = text[j];
+        // A changed digit rises into place; the others don't move.
+        if (!REDUCED && clockDigits[j].animate) {
+          clockDigits[j].animate(
+            [{opacity: 0, transform: 'translateY(0.12em)'}, {opacity: 1, transform: 'none'}],
+            {duration: 700, easing: SETTLE}
+          );
+        }
+      }
+    }
+    setText($('date'), now.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'}));
+    var night = isNight(now);
+    if (night !== document.body.classList.contains('night')) {
+      document.body.classList.toggle('night', night);
+      render();
+      if (!night) nextPhoto();
+    }
   }
   function drift() {
     var x = Math.round(Math.random() * 40 - 20), y = Math.round(Math.random() * 30 - 15);
     $('stage').style.transform = 'translate(' + x + 'px,' + y + 'px)';
   }
 
-  /* ---------- feed ---------- */
+  /* ================= feed ================= */
   var feed = null;
   function api(path) { return (API || '') + path + '?token=' + encodeURIComponent(TOKEN); }
   function loadFeed() {
@@ -149,16 +309,24 @@
 
   function renderStatus() {
     var box = $('status');
-    box.textContent = '';
     var w = feed && feed.weather;
-    if (!w || !w.configured || w.error) return;
+    var text = '';
+    if (w && w.configured && !w.error) {
+      var parts = [];
+      if (w.temperature != null) parts.push(w.temperature + '°');
+      if (w.rain) parts.push(w.rain.text);
+      text = parts.join(' · ');
+    }
+    var key = text + (w && w.rain && w.rain.raining ? '|rain' : '');
+    if (box._key === key) return;
+    box._key = key;
+    box.textContent = '';
+    if (!text) return;
     var span = el('span');
     span.appendChild(icon(w.rain && w.rain.raining ? 'rain' : 'cloud'));
-    var parts = [];
-    if (w.temperature != null) parts.push(w.temperature + '°');
-    if (w.rain) parts.push(w.rain.text);
-    span.appendChild(el('span', null, parts.join(' · ')));
+    span.appendChild(el('span', null, text));
     box.appendChild(span);
+    if (!REDUCED && span.animate) span.animate([{opacity: 0}, {opacity: 1}], {duration: 800, easing: 'ease'});
   }
 
   function legNode(leg) {
@@ -180,47 +348,66 @@
   function renderNextUp() {
     var card = $('nextup');
     var n = feed && feed.nextUp;
-    card.textContent = '';
-    if (!n || !n.event || n.mode === 'none') { card.classList.add('hidden'); return; }
-    card.classList.remove('hidden');
+    if (!n || !n.event || n.mode === 'none' || document.body.classList.contains('night')) { hide(card); return; }
+    var trip = n.trip && n.trip.configured ? n.trip : null;
+    // Identity: what the card is about. Leave-time countdown is not part of it.
+    var key = [n.mode, n.event.title, n.event.start, n.event.end, n.event.location,
+      trip ? (trip.error || trip.legs.map(function (l) { return [l.mode, l.minutes, l.line, l.departure, l.platform, l.delayMinutes, l.cancelled].join(','); }).join(';')) : ''].join('|');
 
-    var head = el('div', 'row between label');
-    var left = el('span', 'row');
-    left.appendChild(icon('cal'));
-    left.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
-    head.appendChild(left);
-    head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
-    card.appendChild(head);
+    fill(card, key, function (inner) {
+      var head = el('div', 'row between label');
+      var left = el('span', 'row');
+      left.appendChild(icon('cal'));
+      left.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
+      head.appendChild(left);
+      head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
+      inner.appendChild(head);
 
-    var what = el('div', 'grow');
-    what.appendChild(el('div', 'title', n.event.title));
-    var where = n.event.location;
-    if (n.destination && !n.destination.travel) where = {home: 'At home', online: 'Online', 'no-location': null}[n.destination.reason] || where;
-    if (where) what.appendChild(el('div', 'sub', where));
-    card.appendChild(what);
+      var what = el('div', 'grow');
+      what.appendChild(el('div', 'title', n.event.title));
+      var where = n.event.location;
+      if (n.destination && !n.destination.travel) where = {home: 'At home', online: 'Online', 'no-location': null}[n.destination.reason] || where;
+      if (where) what.appendChild(el('div', 'sub', where));
+      inner.appendChild(what);
 
-    var trip = n.trip;
-    if (!trip || !trip.configured) return;
-    if (trip.error) { card.appendChild(el('div', 'sub', 'No route: ' + trip.error)); return; }
-    var mins = minsUntil(trip.leaveAt);
-    var leave = el('div', 'leave' + (trip.disrupted || (n.mode === 'live' && mins <= 0) ? ' late' : ''));
-    if (n.mode === 'preview') {
-      leave.appendChild(el('b', null, 'Leave ' + hhmm(trip.leaveAt)));
-      leave.appendChild(el('span', 'sub', trip.durationMinutes + ' min trip'));
-    } else {
-      leave.appendChild(el('b', null, mins <= 0 ? 'Leave now' : 'Leave ' + hhmm(trip.leaveAt)));
-      leave.appendChild(el('span', 'sub', (mins > 0 ? 'in ' + mins + ' min · ' : '') + trip.durationMinutes + ' min trip'));
-    }
-    card.appendChild(leave);
-    var legs = el('div', 'legs');
-    trip.legs.forEach(function (leg, i) {
-      if (i) legs.appendChild(el('span', null, '→'));
-      legs.appendChild(legNode(leg));
+      card._refs = null;
+      if (!trip) return;
+      if (trip.error) { inner.appendChild(el('div', 'sub', 'No route: ' + trip.error)); return; }
+      var leave = el('div', 'leave');
+      var big = el('b');
+      var small = el('span', 'sub');
+      leave.appendChild(big);
+      leave.appendChild(small);
+      inner.appendChild(leave);
+      var legs = el('div', 'legs');
+      trip.legs.forEach(function (leg, i) {
+        if (i) legs.appendChild(el('span', null, '→'));
+        legs.appendChild(legNode(leg));
+      });
+      inner.appendChild(legs);
+      card._refs = {leave: leave, big: big, small: small};
+      updateLeave(card, n, trip);
     });
-    card.appendChild(legs);
+    if (card._refs) updateLeave(card, n, trip);
+    show(card);
   }
 
-  /* ---------- music (from the TV app) + packages ---------- */
+  /* The countdown ticks in place; turning late eases the colour to amber. */
+  function updateLeave(card, n, trip) {
+    var r = card._refs;
+    if (!r || !trip || trip.error) return;
+    var mins = minsUntil(trip.leaveAt);
+    r.leave.classList.toggle('late', Boolean(trip.disrupted) || (n.mode === 'live' && mins <= 0));
+    if (n.mode === 'preview') {
+      setText(r.big, 'Leave ' + hhmm(trip.leaveAt));
+      setText(r.small, trip.durationMinutes + ' min trip');
+    } else {
+      setText(r.big, mins <= 0 ? 'Leave now' : 'Leave ' + hhmm(trip.leaveAt));
+      setText(r.small, (mins > 0 ? 'in ' + mins + ' min · ' : '') + trip.durationMinutes + ' min trip');
+    }
+  }
+
+  /* ================= music (from the TV app) + packages ================= */
   var music = null;
   function readMusic() {
     try {
@@ -233,58 +420,78 @@
 
   function renderFeed() {
     var card = $('feed');
-    card.textContent = '';
     var pkgs = (feed && feed.packages && feed.packages.items) || [];
-    if (!music && !pkgs.length) { card.classList.add('hidden'); return; }
-    card.classList.remove('hidden');
+    if (document.body.classList.contains('night')) pkgs = [];
+    if (!music && !pkgs.length) { hide(card); return; }
 
-    if (music) {
-      var row = el('div', 'row');
-      row.style.gap = '24px';
-      var art = el('div', 'art');
-      if (music.art) art.style.backgroundImage = 'url("' + music.art + '")';
-      else { art.innerHTML = ICON.note; art.style.display = 'flex'; art.style.alignItems = 'center'; art.style.justifyContent = 'center'; }
-      row.appendChild(art);
-      var info = el('div', 'grow');
-      var t = el('div', 'ellipsis', music.title || '');
-      t.style.fontSize = '28px'; t.style.fontWeight = '500';
-      info.appendChild(t);
-      info.appendChild(el('div', 'sub ellipsis', [music.artist, music.app].filter(Boolean).join(' · ')));
-      if (music.durationMs > 0) {
-        var prog = el('div', 'row mono');
-        prog.style.cssText = 'gap:12px;padding-top:8px;font-size:16px;color:var(--muted)';
-        prog.appendChild(el('span', null, fmt(music.positionMs)));
-        var bar = el('span', 'bar'); var fill = el('i');
-        fill.style.width = Math.min(100, 100 * music.positionMs / music.durationMs) + '%';
-        bar.appendChild(fill); prog.appendChild(bar);
-        prog.appendChild(el('span', null, fmt(music.durationMs)));
+    var key = (music ? [music.title, music.artist, music.app, music.art ? music.art.length : 0].join('|') : '-') + '#' + JSON.stringify(pkgs);
+    var rebuilt = fill(card, key, function (inner) {
+      card._bar = null;
+      if (music) {
+        var row = el('div', 'row');
+        row.style.gap = '24px';
+        var art = el('div', 'art');
+        if (music.art) art.style.backgroundImage = 'url("' + music.art + '")';
+        else art.innerHTML = ICON.note;
+        row.appendChild(art);
+        var info = el('div', 'grow');
+        info.appendChild(el('div', 'track ellipsis', music.title || ''));
+        info.appendChild(el('div', 'sub ellipsis', [music.artist, music.app].filter(Boolean).join(' · ')));
+        var prog = el('div', 'progress mono');
+        var at = el('span');
+        var bar = el('span', 'bar');
+        var fillBar = el('i');
+        var total = el('span');
+        bar.appendChild(fillBar);
+        prog.appendChild(at); prog.appendChild(bar); prog.appendChild(total);
         info.appendChild(prog);
+        row.appendChild(info);
+        inner.appendChild(row);
+        card._bar = {at: at, fill: fillBar, total: total, row: prog};
       }
-      row.appendChild(info);
-      card.appendChild(row);
-    }
-    if (music && pkgs.length) card.appendChild(el('div', 'divider'));
-    pkgs.forEach(function (p) {
-      var row = el('div', 'row');
-      row.style.gap = '24px';
-      var ic = el('div', 'row label'); ic.style.cssText += ';width:92px;justify-content:center'; ic.appendChild(icon('box'));
-      row.appendChild(ic);
-      var info = el('div', 'grow');
-      var top = el('div', 'row between'); top.style.fontSize = '24px';
-      top.appendChild(el('span', null, p.carrier + (p.status ? ' · ' + p.status : '')));
-      if (p.window) top.appendChild(el('span', 'mono', p.window));
-      info.appendChild(top);
-      var steps = el('div', 'steps');
-      for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (p.step || 0) ? 'done' : ''));
-      info.appendChild(steps);
-      row.appendChild(info);
-      card.appendChild(row);
+      if (music && pkgs.length) inner.appendChild(el('div', 'divider'));
+      pkgs.forEach(function (p) {
+        var row = el('div', 'row');
+        row.style.gap = '24px';
+        var ic = el('div', 'row label'); ic.style.width = '92px'; ic.style.justifyContent = 'center'; ic.appendChild(icon('box'));
+        row.appendChild(ic);
+        var info = el('div', 'grow');
+        var top = el('div', 'row between'); top.style.fontSize = '24px';
+        top.appendChild(el('span', null, p.carrier + (p.status ? ' · ' + p.status : '')));
+        if (p.window) top.appendChild(el('span', 'mono', p.window));
+        info.appendChild(top);
+        var steps = el('div', 'steps');
+        for (var i = 0; i < 3; i++) steps.appendChild(el('i', i < (p.step || 0) ? 'done' : ''));
+        info.appendChild(steps);
+        row.appendChild(info);
+        inner.appendChild(row);
+      });
     });
+    updateProgress(card, rebuilt);
+    show(card);
+  }
+
+  function updateProgress(card, jump) {
+    var b = card._bar;
+    if (!b || !music) return;
+    var has = music.durationMs > 0;
+    b.row.style.display = has ? '' : 'none';
+    if (!has) return;
+    setText(b.at, fmt(music.positionMs));
+    setText(b.total, fmt(music.durationMs));
+    var scale = Math.min(1, Math.max(0, music.positionMs / music.durationMs));
+    // A new track or a seek jumps; normal playback glides for one poll.
+    var last = b.fill._scale == null ? -1 : b.fill._scale;
+    var seek = jump || scale < last || scale - last > 0.05;
+    if (seek) { b.fill.style.transition = 'none'; }
+    b.fill.style.transform = 'scaleX(' + scale + ')';
+    if (seek) { b.fill.getBoundingClientRect(); b.fill.style.transition = ''; }
+    b.fill._scale = scale;
   }
 
   function render() { renderStatus(); renderNextUp(); renderFeed(); }
 
-  /* ---------- photos ---------- */
+  /* ================= photos ================= */
   var photos = [], index = -1, front = $('photoA'), back = $('photoB');
   function loadPhotos() {
     fetch(api('/api/photos')).then(function (r) { return r.ok ? r.json() : null; })
@@ -301,22 +508,31 @@
     var p = photos[index];
     var img = new Image();
     img.onload = function () {           // swap only once the next photo is ready
-      back.src = p.url; back.alt = p.alt || '';
-      back.classList.add('on'); front.classList.remove('on');
-      var t = front; front = back; back = t;
+      var incoming = back, outgoing = front;
+      incoming.classList.remove('leaving');
+      incoming.src = p.url; incoming.alt = p.alt || '';
+      incoming.getBoundingClientRect();
+      incoming.classList.add('on');
+      if (outgoing.classList.contains('on')) {
+        outgoing.classList.remove('on');
+        outgoing.classList.add('leaving');
+        setTimeout(function () { outgoing.classList.remove('leaving'); }, 2600); // reset zoom once invisible
+      }
+      front = incoming; back = outgoing;
+      // The credit fades out, changes, and fades back with the photo.
       var c = $('credit');
-      c.textContent = 'Photo by ' + p.credit.name + ' · Unsplash';
-      c.classList.remove('hidden');
+      c.classList.remove('in');
+      setTimeout(function () { c.textContent = 'Photo by ' + p.credit.name + ' · Unsplash'; c.classList.add('in'); }, 800);
     };
     img.src = p.url;
   }
 
-  /* ---------- start ---------- */
+  /* ================= start ================= */
   tick(); setInterval(tick, 1000);
   drift(); setInterval(drift, 120000);
   readMusic(); setInterval(function () { readMusic(); renderFeed(); }, 2000);
   loadFeed(); setInterval(loadFeed, 90000);
-  setInterval(renderNextUp, 30000);   // keeps "in N min" honest between fetches
+  setInterval(function () { var c = $('nextup'); var n = feed && feed.nextUp; if (n && n.trip) updateLeave(c, n, n.trip); }, 15000);
   loadPhotos(); setInterval(loadPhotos, 3600000);
   setInterval(nextPhoto, PHOTO_SECONDS * 1000);
 })();
