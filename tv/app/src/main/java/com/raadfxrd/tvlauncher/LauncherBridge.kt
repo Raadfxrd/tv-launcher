@@ -114,17 +114,19 @@ class LauncherBridge(private val activity: Activity) {
         val label = { info: TvInputInfo -> info.loadLabel(activity).toString() }
         val ports = all.filter { it.parentId == null }.sortedBy { it.id }
         val out = JSONArray()
+        // Only ports with a device behind them that says who it is (HDMI-CEC) and
+        // is switched on. The A1 reports every port as connected whether or not
+        // there's a cable in it, so the port's own state can't be trusted.
         ports.forEachIndexed { index, port ->
-            val state = runCatching { tv.getInputState(port.id) }.getOrDefault(TvInputManager.INPUT_STATE_CONNECTED)
-            if (state == TvInputManager.INPUT_STATE_DISCONNECTED) return@forEachIndexed
-            val device = all.firstOrNull { it.parentId == port.id }
+            val device = all.firstOrNull { it.parentId == port.id } ?: return@forEachIndexed
+            val state = runCatching { tv.getInputState(device.id) }.getOrDefault(TvInputManager.INPUT_STATE_CONNECTED)
+            if (state != TvInputManager.INPUT_STATE_CONNECTED) return@forEachIndexed
             val number = Regex("(\\d+)").find(label(port))?.value?.toIntOrNull() ?: (index + 1)
             out.put(
                 JSONObject()
-                    .put("id", (device ?: port).id)
+                    .put("id", device.id)
                     .put("number", number)
-                    .put("name", device?.let(label) ?: label(port))
-                    .put("standby", state == TvInputManager.INPUT_STATE_CONNECTED_STANDBY)
+                    .put("name", label(device))
             )
         }
         return out.toString()

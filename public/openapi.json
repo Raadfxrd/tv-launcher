@@ -368,6 +368,10 @@
           "backdrop": {
             "type": "string",
             "description": "TMDB backdrop, 1280 wide"
+          },
+          "original": {
+            "type": "string",
+            "description": "Full-size TMDB backdrop; the TV loads it through /_vercel/image at 1920 wide"
           }
         }
       },

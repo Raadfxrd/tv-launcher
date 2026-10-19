@@ -48,11 +48,11 @@
           #6C6589; }
   .stage { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; overflow: hidden; }
   .stage .pic { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; object-position: 50% 22%;
-                opacity: 0; transform: scale(1.0); transition: opacity 1.4s ease, transform 14s linear; will-change: opacity, transform; }
-  .stage .pic.on { opacity: 1; transform: scale(1.06); }
+                opacity: 0; transition: opacity 0.9s ease; will-change: opacity; }
+  .stage .pic.on { opacity: 1; }
   /* Album art is small: blown up and blurred it becomes light in the album's colours. */
   .stage .pic.soft { filter: blur(70px) saturate(150%) brightness(0.8); top: -140px; left: -140px; width: 2200px; height: 1360px; }
-  .lite .stage .pic { transition: opacity 1.4s ease; transform: none !important; }
+
   .shade { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; pointer-events: none;
            background:
              radial-gradient(60% 50% at 12% 22%, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0) 100%),
@@ -71,19 +71,19 @@
   .about { position: absolute; left: 112px; top: 132px; width: 980px; display: flex; flex-direction: column; gap: 12px;
            transition: opacity 0.45s ease, transform 0.6s var(--settle); }
   .about.swap { opacity: 0; transform: translateY(8px); }
-  .about-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); }
-  .about-title { font-size: 76px; font-weight: 500; letter-spacing: -0.022em; line-height: 1.02; text-shadow: 0 2px 30px rgba(0,0,0,0.35);
+  .about-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .about-title { font-size: 76px; font-weight: 500; letter-spacing: -0.022em; line-height: 1.02;
                  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .about-meta { font-size: 24px; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); }
+  .about-meta { font-size: 24px; color: var(--muted); }
   .about-title:empty, .about-meta:empty, .about-label:empty { display: none; }
 
   /* ---------- the dock: time on the left, what's next on the right ---------- */
   .dock { position: absolute; left: 112px; right: 112px; bottom: 60px; display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
   .when { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-  .clock { font-family: 'Iosevka', monospace; font-size: 136px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.9; text-shadow: 0 2px 30px rgba(0,0,0,0.35); }
+  .clock { font-family: 'Iosevka', monospace; font-size: 136px; font-weight: 300; letter-spacing: -0.03em; line-height: 0.9; }
   .clock span { display: inline-block; }
-  .date { font-size: 28px; padding: 14px 0 0 4px; text-shadow: 0 1px 16px rgba(0,0,0,0.3); }
-  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); text-shadow: 0 1px 14px rgba(0,0,0,0.45); padding: 2px 0 0 4px; min-height: 48px; }
+  .date { font-size: 28px; padding: 14px 0 0 4px; }
+  .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); padding: 2px 0 0 4px; min-height: 48px; }
 
   /* Settings: a gear at the end of the date line, one press down from the apps. */
   .gear { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 24px; margin-left: 8px; color: var(--text); flex-shrink: 0;
@@ -92,7 +92,7 @@
   .row.active .gear.focused.pressed { transform: scale(1.0); }
 
   .now { display: flex; gap: 24px; align-items: flex-end; justify-content: flex-end; min-width: 0; }
-  .card { text-shadow: 0 1px 10px rgba(0,0,0,0.35); width: 520px; flex-shrink: 1; min-width: 0; border-radius: 26px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; animation: rise 0.7s var(--settle) both; }
+  .card { width: 520px; flex-shrink: 1; min-width: 0; border-radius: 26px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; animation: rise 0.7s var(--settle) both; }
   .card.next { width: 620px; }
   .card + .card { animation-delay: 0.06s; }
   @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
@@ -118,13 +118,13 @@
   /* Generous room around the track, so a focused tile's scale and shadow are
      never clipped into a hard edge. */
   .viewport { margin: -56px -112px; padding: 56px 112px; overflow: hidden; }
-  .track { display: flex; gap: 28px; transition: transform 0.5s var(--settle); will-change: transform; }
+  .track { display: flex; gap: 28px; transition: transform 0.4s var(--settle); }
 
   .tile { position: relative; flex-shrink: 0; width: 304px; height: 171px; border-radius: 24px; overflow: hidden;
           background: rgba(255,255,255,0.06) center / cover no-repeat;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), var(--lift-1);
           transform: translateZ(0);
-          transition: transform 0.4s var(--settle), box-shadow 0.4s var(--settle), opacity 0.3s ease; }
+          transition: transform 0.3s var(--settle), opacity 0.3s ease; }
   .tile .name { position: absolute; left: 22px; bottom: 18px; right: 22px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile.banner .name { display: none; }
   .tile.text { display: flex; flex-direction: column; justify-content: space-between; padding: 22px; }
@@ -143,7 +143,7 @@
   .row.active .tile.focused.pressed { transform: scale(1.03) translateZ(0); transition-duration: 0.09s; }
 
   .caption { position: absolute; left: 0; height: 30px; font-size: 22px; color: var(--text); white-space: nowrap; opacity: 0;
-             text-shadow: 0 1px 12px rgba(20, 10, 50, 0.3); transition: opacity 0.25s ease, transform 0.5s var(--settle); }
+             transition: opacity 0.25s ease, transform 0.5s var(--settle); }
   .row.active .caption { opacity: 1; }
 
   #row-apps { position: absolute; left: 112px; right: 112px; top: 492px; height: 230px; }
@@ -443,7 +443,7 @@
       var list = trending[it.shelf];
       return {key: 'svc:' + it.shelf, next: function (i) {
         var t = list[i % list.length];
-        return {src: t.backdrop, label: 'Popular on ' + (it.shelfName || it.label), title: t.title,
+        return {src: t.original ? API + '/_vercel/image?url=' + encodeURIComponent(t.original) + '&w=1920&q=82' : t.backdrop, fallback: t.backdrop, label: 'Popular on ' + (it.shelfName || it.label), title: t.title,
                 meta: [t.kind === 'film' ? 'Film' : 'Series', t.year].filter(Boolean).join(' · ')};
       }};
     }
@@ -491,7 +491,7 @@
     }
     var key = stageKey;
     var img = new Image();
-    img.onload = function () {
+    var ready = function () {
       if (key !== stageKey) return;            // focus moved on while it loaded
       about.classList.add('swap');
       setTimeout(function () {
@@ -507,6 +507,13 @@
       picBack.classList.add('on');
       picFront.classList.remove('on');
       var t = picFront; picFront = picBack; picBack = t;
+    };
+    img.onload = function () {
+      // Decode off the main thread first, so the crossfade starts smooth.
+      if (img.decode) img.decode().then(ready, ready); else ready();
+    };
+    img.onerror = function () {
+      if (pic.fallback && img.src.indexOf(pic.fallback) < 0) { pic.src = pic.fallback; img.src = pic.fallback; }
     };
     img.src = pic.src;
   }

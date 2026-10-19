@@ -1,0 +1,18 @@
+{
+  "images": {
+    "sizes": [
+      1920
+    ],
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "image.tmdb.org",
+        "pathname": "/t/p/original/**"
+      }
+    ],
+    "minimumCacheTTL": 604800,
+    "formats": [
+      "image/webp"
+    ]
+  }
+}
