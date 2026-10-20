@@ -339,17 +339,22 @@
   function overlaps(a, b, gap) {
     return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
   }
-  /* Burn-in care, day and night alike: with every beat the clock and cards
-     fade out together; the cards shift a little, the clock goes to a new
-     free spot anywhere on the screen (clear of every card and the photo
-     credit, and well away from where it was), and both fade back in. */
+  /* Burn-in care, day and night alike: with every beat the clock fades out,
+     goes to a new free spot anywhere on the screen (clear of every card and
+     the photo credit, and well away from where it was), and fades back in.
+     The cards stay put but shift a few pixels, unanimated. */
   function drift() {
     var stage = $('stage'), left = document.querySelector('.left'), right = $('right');
     stage.style.transform = '';
-    stage.style.opacity = '0';
+    stage.style.opacity = '';
+    // The cards stay where they are; a few pixels of shift, no animation, is
+    // too small to see but keeps their edges from burning in.
+    var rx = Math.round(Math.random() * 16 - 8), ry = Math.round(Math.random() * 12 - 6);
+    right.style.transform = 'translate(' + rx + 'px,' + ry + 'px)';
+    // Only the clock fades out, moves, and fades back in.
+    left.style.transition = 'opacity 1.5s ease';
+    left.style.opacity = '0';
     setTimeout(function () {
-      var rx = Math.round(Math.random() * 120 - 60), ry = Math.round(Math.random() * 80 - 40);
-      right.style.transform = 'translate(' + rx + 'px,' + ry + 'px)';
 
       left.style.transform = '';
       var base = boxOf(left);
@@ -374,8 +379,8 @@
       if (!best) best = [0, 0];   // nowhere free: its own corner, which the cards never cover
       lastSpot = best;
       left.style.transform = 'translate(' + best[0] + 'px,' + best[1] + 'px)';
-      stage.style.opacity = '';
-    }, 1500);
+      left.style.opacity = '';
+    }, 1600);
   }
 
   /* ================= feed ================= */
