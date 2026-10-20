@@ -217,7 +217,7 @@ test('travel: options around the best departure, earliest first, twins merged', 
 	const best = o(5, 53, 6, 57);
 	const list = [o(4, 58, 6, 13), o(5, 26, 6, 27), best, o(5, 54, 6, 57, 'google'), o(6, 20, 7, 25), o(6, 50, 7, 55), o(7, 20, 8, 25)];
 	const out = optionsAround(list, best);
-	assert.deepEqual(out.map((x) => x.leaveAt.slice(11, 16)), ['04:58', '05:26', '05:53', '06:20', '06:50']);
+	assert.deepEqual(out.map((x) => x.leaveAt.slice(11, 16)), ['04:58', '05:26', '05:53', '06:20', '06:50', '07:20']);
 	assert.equal(out.filter((x) => x.best).length, 1);
 	assert.equal(out[2].best, true);
 });
