@@ -147,6 +147,37 @@
   #row-apps { position: absolute; left: 112px; right: 112px; top: 492px; height: 230px; }
   #row-apps .caption { top: 186px; }
 
+  /* The Next up card can be picked: down to the dock, right of the gear. */
+  .card.next { transition: transform 0.3s var(--settle); }
+  body.in-dock .card.focused { transform: scale(1.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 0 0 0 3px rgba(255,255,255,0.95), var(--lift-2); }
+  body.in-dock .card.focused.pressed { transform: scale(1.0); }
+
+  /* ---------- routes: the trains around your event ---------- */
+  .routes { position: fixed; top: 64px; right: 112px; bottom: 64px; width: 1000px; z-index: 5; border-radius: 30px; padding: 34px 36px 26px;
+            --glass-fill: rgba(18, 18, 18, 0.56); display: flex; flex-direction: column; gap: 18px;
+            opacity: 0; visibility: hidden; transform: translateX(40px) scale(0.98);
+            transition: opacity 0.3s ease, transform 0.5s var(--settle), visibility 0s linear 0.5s; }
+  body.routes-open .routes { opacity: 1; visibility: visible; transform: none; transition: opacity 0.3s ease, transform 0.5s var(--settle), visibility 0s; }
+  .routes .r-label { font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .routes .r-title { font-size: 38px; font-weight: 500; letter-spacing: -0.015em; }
+  .routes .r-sub { font-size: 22px; color: var(--muted); margin-top: -8px; }
+  .routes .list { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .opt { display: grid; grid-template-columns: 250px 1fr 170px; align-items: center; gap: 22px; padding: 20px 24px; border-radius: 20px;
+         background: rgba(255,255,255,0.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); transition: transform 0.25s var(--settle); }
+  .opt.sel { transform: scale(1.015); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 0 0 0 3px rgba(255,255,255,0.95), var(--lift-2); background: rgba(255,255,255,0.1); }
+  .opt .times { font: 400 34px var(--mono, 'Iosevka'), monospace; font-family: 'Iosevka', monospace; letter-spacing: -0.02em; white-space: nowrap; }
+  .opt .times span { color: var(--muted); }
+  .opt .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 20px; color: var(--muted); }
+  .opt .chip { font-family: 'Iosevka', monospace; font-weight: 500; font-size: 19px; padding: 3px 9px; border-radius: 8px; background: rgba(255,255,255,0.92); color: #111; }
+  .opt .chip.walk { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.35); font-weight: 400; }
+  .opt .sep { opacity: 0.5; }
+  .opt .meta { text-align: right; font-size: 20px; color: var(--muted); line-height: 1.35; }
+  .opt .meta b { display: block; color: var(--text); font-weight: 500; font-size: 24px; }
+  .opt.late .times, .opt .late { color: var(--warn); }
+  .opt .best { display: inline-block; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #111; background: #fff; border-radius: 6px; padding: 2px 7px; margin-top: 6px; }
+  .routes .r-foot { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); }
+  .routes .r-foot .ok { color: var(--text); }
+
   @media (prefers-reduced-motion: reduce) {
     .track, .tile, .gear, .caption, .about, .stage .pic { transition-duration: 0.01s !important; }
     .card { animation: none; } .tile::after { display: none; }
@@ -182,6 +213,13 @@
 <div class="bg" aria-hidden="true"></div>
 <div class="stage" aria-hidden="true"><img class="pic" id="picA" alt=""><img class="pic" id="picB" alt=""></div>
 <div class="shade" aria-hidden="true"></div>
+
+<div class="routes glass" id="routes" aria-hidden="true">
+  <div><div class="r-label" id="rLabel"></div><div class="r-title" id="rTitle"></div></div>
+  <div class="r-sub" id="rSub"></div>
+  <div class="list" id="rList"></div>
+  <div class="r-foot"><span id="rHint"></span><span id="rStatus"></span></div>
+</div>
 
 <div class="page">
   <div class="about" id="about"><div class="about-label" id="aboutLabel"></div><div class="about-title" id="aboutTitle"></div><div class="about-meta" id="aboutMeta"></div></div>
@@ -323,6 +361,7 @@
   }
 
   function paint(instant) {
+    document.body.classList.toggle('in-dock', !!(rows[current] && rows[current].kind === 'dock'));
     rows.forEach(function (r, ri) {
       r.el.classList.toggle('active', ri === current);
       r.items.forEach(function (it, i) { it.node.classList.toggle('focused', i === r.index); });
@@ -370,11 +409,33 @@
     else if (a.type === 'hdmi') bridge.hdmi(a.n, a.name || '');
     else if (a.type === 'input') bridge.openInput(a.id);
     else if (a.type === 'settings') bridge.openSettings();
+    else if (a.type === 'routes') openRoutes();
+  }
+
+  /* The dock row: the gear, and the Next up card once it has a route. */
+  function dockItems() {
+    var card = $('nextCard');
+    var n = feed && feed.nextUp, t = n && n.trip;
+    var items = [gearItem];
+    if (card && t && t.options && t.options.length) items.push({node: card, label: 'Routes', action: {type: 'routes'}});
+    rows.forEach(function (r) {
+      if (r.kind !== 'dock') return;
+      r.items = items;
+      r.index = Math.min(r.index, items.length - 1);
+    });
+    paint(false);
   }
 
   var pressed = null;
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
+    if (routesOpen) {
+      if (k === 38) { pickRoute(-1); e.preventDefault(); }
+      else if (k === 40) { pickRoute(1); e.preventDefault(); }
+      else if (k === 37 || k === 27) { closeRoutes(); e.preventDefault(); }
+      else if ((k === 13 || k === 23) && !e.repeat) { routeKeyDown = true; e.preventDefault(); }
+      return;
+    }
     if (k === 37) { move(0, -1); e.preventDefault(); }
     else if (k === 39) { move(0, 1); e.preventDefault(); }
     else if (k === 38) { move(-1, 0); e.preventDefault(); }
@@ -387,6 +448,10 @@
     }
   });
   document.addEventListener('keyup', function (e) {
+    if (routesOpen) {
+      if ((e.keyCode === 13 || e.keyCode === 23) && routeKeyDown) { routeKeyDown = false; sendRoute(); }
+      return;
+    }
     if ((e.keyCode === 13 || e.keyCode === 23) && pressed) {
       pressed.classList.remove('pressed');
       pressed = null;
@@ -544,7 +609,7 @@
     try { var raw = bridge && bridge.nowPlaying(); music = raw ? JSON.parse(raw) : null; } catch (e) { music = null; }
     var n = feed && feed.nextUp;
     var parcels = (feed && feed.packages && feed.packages.items) || [];
-    var key = JSON.stringify([n && n.event, n && n.trip && n.trip.leaveAt, n && n.trip && n.trip.disrupted, music && [music.title, music.artist], parcels]);
+    var key = JSON.stringify([n && n.event, n && n.trip && n.trip.leaveAt, n && n.trip && n.trip.disrupted, n && n.trip && (n.trip.options || []).map(function (o) { return o.leaveAt + o.disrupted; }), music && [music.title, music.artist], parcels]);
     if (key === lastNow) return;       // nothing changed: no rebuild, no flicker
     if (lastNow) stageForFocus();      // a new song: Tidal's backdrop follows
     lastNow = key;
@@ -552,6 +617,7 @@
 
     if (n && n.event && n.mode !== 'none') {
       var c = el('div', 'card glass next');
+      c.id = 'nextCard';
       var head = el('div', 'head');
       head.appendChild(el('span', null, n.mode === 'preview' ? 'Tomorrow' : 'Next up'));
       head.appendChild(el('span', 'mono', hhmm(n.event.start) + '–' + hhmm(n.event.end)));
@@ -600,6 +666,131 @@
       });
       box.appendChild(f);
     }
+    dockItems();
+    if (routesOpen) renderRoutes();
+  }
+
+  /* ================= routes =================
+     OK on the Next up card: the departures around your event, up and down to
+     pick one, OK sends it to your phone (ntfy), Back closes. */
+  var routesOpen = false, routeKeyDown = false, routeSel = 0, routeOptions = [];
+
+  function rideLabel(l) {
+    var line = String(l.line || '').trim();
+    var v = String(l.vehicle || '').toLowerCase();
+    if (/sprinter/i.test(line)) return 'SPR';
+    if (/intercity direct/i.test(line)) return 'ICD';
+    if (/intercity/i.test(line)) return 'IC';
+    if (v === 'subway' || v === 'metro') return 'M' + line.replace(/^metro\s*/i, '');
+    if (v === 'bus' && /^\d/.test(line)) return 'Bus ' + line;
+    if (v === 'tram' && /^\d/.test(line)) return 'Tram ' + line;
+    return line || (v ? v[0].toUpperCase() + v.slice(1) : 'Ride');
+  }
+  function duration(min) { return min >= 60 ? Math.floor(min / 60) + ' h ' + pad(min % 60) : min + ' min'; }
+
+  function openRoutes() {
+    var t = feed && feed.nextUp && feed.nextUp.trip;
+    if (!t || !t.options || !t.options.length) return;
+    routesOpen = true;
+    routeSel = Math.max(0, t.options.map(function (o) { return o.best; }).indexOf(true));
+    renderRoutes();
+    document.body.classList.add('routes-open');
+    $('routes').setAttribute('aria-hidden', 'false');
+  }
+  function closeRoutes() {
+    routesOpen = false;
+    document.body.classList.remove('routes-open');
+    $('routes').setAttribute('aria-hidden', 'true');
+    $('rStatus').textContent = '';
+  }
+  window.onBack = function () { if (routesOpen) { closeRoutes(); return true; } return false; };
+
+  function pickRoute(d) {
+    routeSel = Math.max(0, Math.min(routeOptions.length - 1, routeSel + d));
+    Array.prototype.forEach.call($('rList').children, function (row, i) { row.classList.toggle('sel', i === routeSel); });
+    $('rStatus').textContent = '';
+  }
+
+  function renderRoutes() {
+    var n = feed && feed.nextUp, t = n && n.trip;
+    if (!t || !t.options) { closeRoutes(); return; }
+    var keep = routeOptions[routeSel] && routeOptions[routeSel].leaveAt;
+    routeOptions = t.options;
+    var again = routeOptions.map(function (o) { return o.leaveAt; }).indexOf(keep);
+    if (again >= 0) routeSel = again;
+    routeSel = Math.min(routeSel, routeOptions.length - 1);
+
+    $('rLabel').textContent = (n.mode === 'preview' ? 'Tomorrow' : 'Today') + ' · ' + n.event.title;
+    $('rTitle').textContent = n.event.location || (t.to && t.to.label) || 'Routes';
+    $('rSub').textContent = 'Starts ' + hhmm(n.event.start) + (t.arriveBy && hhmm(t.arriveBy) !== hhmm(n.event.start) ? ' · arrive by ' + hhmm(t.arriveBy) : '');
+    var push = feed.phone && feed.phone.push;
+    $('rHint').textContent = push ? '\u2191\u2193 pick a departure · OK sends it to your phone' : 'Set NTFY_TOPIC in Vercel to send routes to your phone';
+
+    var list = $('rList');
+    list.textContent = '';
+    routeOptions.forEach(function (o, i) {
+      var row = el('div', 'opt' + (i === routeSel ? ' sel' : '') + (o.disrupted ? ' late' : ''));
+      var times = el('div', 'times');
+      times.appendChild(document.createTextNode(hhmm(o.leaveAt) + ' '));
+      times.appendChild(el('span', null, '\u2192 ' + hhmm(o.arriveAt)));
+      row.appendChild(times);
+      var chips = el('div', 'chips');
+      (o.legs || []).forEach(function (l, j) {
+        if (j) chips.appendChild(el('span', 'sep', '\u203A'));
+        if (l.mode === 'walk') chips.appendChild(el('span', 'chip walk', 'walk ' + l.minutes));
+        else {
+          chips.appendChild(el('span', 'chip', rideLabel(l)));
+          var extra = [l.departure ? hhmm(l.departure) : null, l.platform ? 'sp ' + l.platform : null].filter(Boolean).join(' ');
+          if (extra) chips.appendChild(el('span', null, extra));
+          if (l.delayMinutes > 0) chips.appendChild(el('span', 'late', '+' + l.delayMinutes));
+          if (l.cancelled) chips.appendChild(el('span', 'late', 'cancelled'));
+        }
+      });
+      row.appendChild(chips);
+      var meta = el('div', 'meta');
+      meta.appendChild(el('b', null, duration(o.durationMinutes)));
+      meta.appendChild(document.createTextNode(o.transfers ? o.transfers + (o.transfers === 1 ? ' transfer' : ' transfers') : 'direct'));
+      if (o.best) { meta.appendChild(document.createElement('br')); meta.appendChild(el('span', 'best', 'Best')); }
+      row.appendChild(meta);
+      list.appendChild(row);
+    });
+  }
+
+  /* The route, compact, in the link's # so it never reaches a server. */
+  function tripLink(n, t, o) {
+    var payload = {
+      e: n.event.title, s: n.event.start, loc: n.event.location || (t.to && t.to.label) || null,
+      f: t.from ? [t.from.lat, t.from.lng] : null, t: t.to ? [t.to.lat, t.to.lng] : null,
+      o: {l: o.leaveAt, a: o.arriveAt, d: o.durationMinutes, x: o.transfers || 0, legs: (o.legs || []).map(function (l) {
+        if (l.mode === 'walk') return {w: l.minutes, to: l.to || null};
+        return {v: l.vehicle || null, n: rideLabel(l), h: l.headsign || null, f: l.from || null, t: l.to || null,
+                d: l.departure || null, a: l.arrival || null, p: l.platform || null, dl: l.delayMinutes || 0, c: !!l.cancelled};
+      })}
+    };
+    var b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return API + '/trip/#' + b64;
+  }
+
+  function sendRoute() {
+    var n = feed && feed.nextUp, t = n && n.trip, o = routeOptions[routeSel];
+    if (!o) return;
+    if (!(feed.phone && feed.phone.push)) { $('rStatus').textContent = 'Not set up yet'; return; }
+    var first = (o.legs || []).filter(function (l) { return l.mode !== 'walk'; })[0];
+    var title = 'Leave ' + hhmm(o.leaveAt) + ' \u2192 ' + (n.event.location || n.event.title);
+    var message = [first ? rideLabel(first) + ' ' + hhmm(first.departure) + (first.from ? ' from ' + first.from : '') + (first.platform ? ', spoor ' + first.platform : '') : null,
+                   'arrive ' + hhmm(o.arriveAt) + ' · ' + duration(o.durationMinutes),
+                   n.event.title + ' starts ' + hhmm(n.event.start)].filter(Boolean).join('\n');
+    $('rStatus').className = '';
+    $('rStatus').textContent = 'Sending…';
+    fetch(API + '/api/send?token=' + encodeURIComponent(TOKEN), {
+      method: 'POST', headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({title: title, message: message, url: tripLink(n, t, o)})
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return {ok: r.ok, d: d}; }); })
+      .then(function (x) {
+        $('rStatus').className = 'ok';
+        $('rStatus').textContent = x.ok && x.d.sent ? 'Sent to your phone \u2713' : 'Couldn\u2019t send: ' + (x.d.error || 'not set up');
+      })
+      .catch(function () { $('rStatus').textContent = 'Couldn\u2019t reach the server'; });
   }
 
   window.onLauncherResume = function () { loadApps(); loadFeed(); };

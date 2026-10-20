@@ -87,7 +87,10 @@ class LauncherActivity : Activity() {
 
     // Back does nothing on the home screen.
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {}
+    // Back closes whatever the page has open (the routes panel); otherwise nothing.
+    override fun onBackPressed() {
+        web.evaluateJavascript("window.onBack && window.onBack()", null)
+    }
 
     override fun onDestroy() {
         unregisterReceiver(packagesChanged)

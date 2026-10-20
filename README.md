@@ -111,6 +111,18 @@ adb shell pm disable-user --user 0 com.google.android.tvlauncher
 # undo: adb shell pm enable com.google.android.tvlauncher
 ```
 
+## Routes to your phone
+
+Down from the apps to the dock, right onto the Next up card, OK: the
+departures around your event (NS station to station and Google door to door),
+with platforms, transfers and delays. Up/down picks one, OK sends it to your
+phone as a push notification; tapping it opens `/trip/`, the route step by
+step, with buttons for Apple Maps and Google Maps. Back closes the panel.
+
+Pushes go through [ntfy](https://ntfy.sh): install the ntfy app, subscribe to
+a long random topic name, and set that name as `NTFY_TOPIC` in Vercel. The
+route itself travels in the link after the `#`, so it never reaches a server.
+
 ## Next up: the rules
 
 - All-day events and events that have started are ignored.

@@ -72,6 +72,8 @@ module.exports = async function handler(req, res) {
 			nextUp: next.status === 'fulfilled' ? next.value : {configured: true, error: next.reason?.message || String(next.reason)},
 			weather: weather.status === 'fulfilled' ? weather.value : {configured: true, error: weather.reason?.message || String(weather.reason)},
 			packages: parcels.status === 'fulfilled' ? parcels.value : {configured: true, items: [], error: parcels.reason?.message || String(parcels.reason)},
+			// Whether the launcher can send a route to the phone (POST /api/send).
+			phone: {push: Boolean(env.NTFY_TOPIC)},
 		},
 		CACHE_SECONDS
 	);

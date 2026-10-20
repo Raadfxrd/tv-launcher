@@ -209,3 +209,15 @@ test('travel: walking minutes from the distance, with a detour for real streets'
 	const m = walkMinutes({lat: 52.3120, lng: 4.9470}, {lat: 52.3120, lng: 4.9587});
 	assert.ok(m >= 11 && m <= 15, String(m));
 });
+
+test('travel: options around the best departure, earliest first, twins merged', () => {
+	const {optionsAround} = require('../lib/travel');
+	const at = (h, m) => `2026-10-21T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`;
+	const o = (lh, lm, ah, am, source = 'ns') => ({source, leaveAt: at(lh, lm), arriveAt: at(ah, am), durationMinutes: 60});
+	const best = o(5, 53, 6, 57);
+	const list = [o(4, 58, 6, 13), o(5, 26, 6, 27), best, o(5, 54, 6, 57, 'google'), o(6, 20, 7, 25), o(6, 50, 7, 55), o(7, 20, 8, 25)];
+	const out = optionsAround(list, best);
+	assert.deepEqual(out.map((x) => x.leaveAt.slice(11, 16)), ['04:58', '05:26', '05:53', '06:20', '06:50']);
+	assert.equal(out.filter((x) => x.best).length, 1);
+	assert.equal(out[2].best, true);
+});
