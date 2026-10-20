@@ -247,7 +247,7 @@
      The only row, in this order. Apps are found by package first, then by
      the name the TV shows; ones that aren't installed are simply left out.
      `shelf` is whose popular titles fill the screen while you're on it;
-     `music` shows what's playing instead. Everything else: plain black and white. */
+     `music` shows what's playing instead. Everything else shows your photos. */
   var PINNED = [
     {hdmi: 3, label: 'Apple TV', shelf: 'apple', shelfName: 'Apple TV+'},     // the Apple TV, on HDMI 3
     {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
@@ -481,7 +481,7 @@
   /* ================= the stage =================
      The whole background follows the focused tile, once the remote rests on
      it: a streaming app shows what's popular there (TMDB, via /api/trending),
-     Tidal shows the album that's playing; anything else stays black and white.
+     Tidal shows the album that's playing, and everything else your photos.
      Each source cycles slowly; a picture only swaps in once it has loaded. */
   var trending = {};
   function loadTrending() {
@@ -493,6 +493,20 @@
         console.log('[stage] trending', d ? Object.keys(d.services || {}).length + ' services' : 'no answer');
       })
       .catch(function (e) { console.warn('[stage] trending failed', e); });
+  }
+
+  var photos = [], photoIndex = 0;
+  function loadPhotos() {
+    if (!API) return;
+    fetch(API + '/api/photos?token=' + encodeURIComponent(TOKEN))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.photos || !d.photos.length) { console.warn('[stage] no photos', d && d.error); return; }
+        photos = d.photos.slice().sort(function () { return Math.random() - 0.5; });
+        console.log('[stage] photos', photos.length);
+        stageForFocus();
+      })
+      .catch(function (e) { console.warn('[stage] photos failed', e); });
   }
 
   function playing() {
@@ -516,7 +530,14 @@
         return {src: music.art, soft: true, label: 'Now playing', title: music.title, meta: music.artist || ''};
       }};
     }
-    return null;   // nothing of its own to show: plain black and white
+    // Nothing of its own to show: your photos, the same ones as the screensaver.
+    if (photos.length) {
+      return {key: 'photos', next: function () {
+        var ph = photos[photoIndex++ % photos.length];
+        return {src: ph.url, label: '', title: '', meta: ''};
+      }};
+    }
+    return null;   // no photos (yet): plain black
   }
 
   var stageKey = null, stageStep = 0, stageTimer = null, stageCycle = null;
@@ -800,6 +821,7 @@
   loadApps(); setInterval(loadApps, 10000);   // picks up installs and removals
   loadFeed(); setInterval(loadFeed, 90000);
   loadTrending(); setInterval(loadTrending, 3 * 3600 * 1000);
+  loadPhotos(); setInterval(loadPhotos, 3600 * 1000);
   setInterval(renderNow, 3000);
 })();
 </script>
