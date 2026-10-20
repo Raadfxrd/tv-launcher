@@ -74,6 +74,8 @@ module.exports = async function handler(req, res) {
 			packages: parcels.status === 'fulfilled' ? parcels.value : {configured: true, items: [], error: parcels.reason?.message || String(parcels.reason)},
 			// Whether the launcher can send a route to the phone (POST /api/send).
 			phone: {push: Boolean(env.NTFY_TOPIC)},
+			// Night hours for the screensaver: "23-6" (default), "1-7", or "off".
+			screensaver: {night: env.SCREENSAVER_NIGHT || '23-6'},
 		},
 		CACHE_SECONDS
 	);

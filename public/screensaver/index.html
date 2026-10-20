@@ -181,7 +181,11 @@
   var TOKEN = params.get('token') || '';
   var API = params.get('api') || '';                       // defaults to this site
   var PHOTO_SECONDS = Number(params.get('photoSeconds') || 60);
-  var NIGHT = (params.get('night') || '23-6').split('-').map(Number); // dark between these hours
+  // Dark between these hours: ?night=23-6 on the URL, else SCREENSAVER_NIGHT
+  // from the feed (e.g. "1-7", or "off" for photos all night), else 23-6.
+  function parseNight(v) { return /^off$/i.test(String(v || '')) ? null : String(v || '23-6').split('-').map(Number); }
+  var NIGHT = parseNight(params.get('night'));
+  var nightFromUrl = params.has('night');
   var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var SETTLE = 'cubic-bezier(0.22, 1, 0.36, 1)';
   if (params.get('lite') === '1') document.documentElement.classList.add('lite');
@@ -289,6 +293,7 @@
   var clockDigits = [];
   function isNight(d) {
     var h = d.getHours();
+    if (!NIGHT) return false;
     return NIGHT[0] > NIGHT[1] ? (h >= NIGHT[0] || h < NIGHT[1]) : (h >= NIGHT[0] && h < NIGHT[1]);
   }
   function tick() {
@@ -315,11 +320,35 @@
     if (night !== document.body.classList.contains('night')) {
       document.body.classList.toggle('night', night);
       render();
+      drift();
       if (!night) nextPhoto();
     }
   }
+  /* Burn-in care for the OLED: nothing stays on the same pixels for long.
+     By day the whole stage drifts up to ±60 px every two minutes (slowly, so
+     you never see it move). At night only the dim clock is up, so it fades
+     out, moves to a new spot anywhere on the screen, and fades back in. */
+  var lastSpot = null;
   function drift() {
-    var x = Math.round(Math.random() * 40 - 20), y = Math.round(Math.random() * 30 - 15);
+    var left = document.querySelector('.left');
+    if (document.body.classList.contains('night')) {
+      $('stage').style.transform = '';
+      var w = left.offsetWidth, h = left.offsetHeight;
+      var maxX = Math.max(0, 1920 - 280 - w), maxY = Math.max(0, 1080 - 230 - h);
+      var spot;
+      do { spot = [Math.round(Math.random() * maxX), -Math.round(Math.random() * maxY)]; }
+      while (lastSpot && Math.abs(spot[0] - lastSpot[0]) + Math.abs(spot[1] - lastSpot[1]) < 300 && Math.random() < 0.9);
+      lastSpot = spot;
+      left.style.transition = 'opacity 2s ease';
+      left.style.opacity = '0';
+      setTimeout(function () {
+        left.style.transform = 'translate(' + spot[0] + 'px,' + spot[1] + 'px)';
+        left.style.opacity = '';
+      }, 2100);
+      return;
+    }
+    left.style.transform = '';
+    var x = Math.round(Math.random() * 120 - 60), y = Math.round(Math.random() * 80 - 40);
     $('stage').style.transform = 'translate(' + x + 'px,' + y + 'px)';
   }
 
@@ -328,7 +357,12 @@
   function api(path) { return (API || '') + path + '?token=' + encodeURIComponent(TOKEN); }
   function loadFeed() {
     fetch(api('/api/feed')).then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) { if (data) { feed = data; render(); } })
+      .then(function (data) {
+        if (!data) return;
+        feed = data;
+        if (!nightFromUrl && data.screensaver) { NIGHT = parseNight(data.screensaver.night); tick(); }
+        render();
+      })
       .catch(function () { /* keep showing the last good answer */ });
   }
 
@@ -555,6 +589,7 @@
   /* ================= start ================= */
   tick(); setInterval(tick, 1000);
   drift(); setInterval(drift, 120000);
+  document.addEventListener('visibilitychange', drift);
   readMusic(); setInterval(function () { readMusic(); renderFeed(); }, 2000);
   loadFeed(); setInterval(loadFeed, 90000);
   setInterval(function () { var c = $('nextup'); var n = feed && feed.nextUp; if (n && n.trip) updateLeave(c, n, n.trip); }, 15000);
