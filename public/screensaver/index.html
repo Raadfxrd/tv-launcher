@@ -44,7 +44,7 @@
   /* ---------- layout ----------
      The whole stage drifts a few pixels every two minutes so nothing sits
      still on the OLED. Slow ease-in-out: you never see it move. */
-  .stage { position: absolute; inset: 0; padding: 120px 140px 110px; display: flex; justify-content: space-between; align-items: flex-end; transition: transform 6s cubic-bezier(.45, 0, .55, 1); }
+  .stage { position: absolute; inset: 0; padding: 120px 140px 110px; display: flex; justify-content: space-between; align-items: flex-end; transition: opacity 1.4s ease; }
   .left { display: flex; flex-direction: column; gap: 18px; text-shadow: 0 2px 24px rgba(0,0,0,.45); }
 
   /* Type: tracking tightens as size grows, body stays near zero. */
@@ -325,8 +325,8 @@
     }
   }
   /* Burn-in care for the OLED: nothing stays on the same pixels for long.
-     By day the whole stage drifts up to ±60 px with every new photo (slowly, so
-     you never see it move). At night only the dim clock is up, so it fades
+     By day the clock and cards fade out with every new photo, shift up to
+     ±60 px, and fade back in. At night only the dim clock is up, so it fades
      out, moves to a new spot anywhere on the screen, and fades back in. */
   var lastSpot = null;
   /* Where an element sits on the stage, in the page's own 1920×1080 units
@@ -343,6 +343,7 @@
     var left = document.querySelector('.left');
     if (document.body.classList.contains('night')) {
       $('stage').style.transform = '';
+      $('stage').style.opacity = '';
       // Measure without the current move, then pick a spot clear of every card on screen.
       var was = left.style.transform;
       left.style.transform = '';
@@ -372,9 +373,16 @@
       }, 2100);
       return;
     }
-    left.style.transform = '';
+    // By day: the clock and cards fade out, shift, and fade back in, while
+    // the new photo crossfades underneath. Nothing ever slides.
+    var stage = $('stage');
     var x = Math.round(Math.random() * 120 - 60), y = Math.round(Math.random() * 80 - 40);
-    $('stage').style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    stage.style.opacity = '0';
+    setTimeout(function () {
+      left.style.transform = '';
+      stage.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      stage.style.opacity = '';
+    }, 1500);
   }
 
   /* ================= feed ================= */
