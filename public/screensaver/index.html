@@ -325,19 +325,44 @@
     }
   }
   /* Burn-in care for the OLED: nothing stays on the same pixels for long.
-     By day the whole stage drifts up to ±60 px every two minutes (slowly, so
+     By day the whole stage drifts up to ±60 px with every new photo (slowly, so
      you never see it move). At night only the dim clock is up, so it fades
      out, moves to a new spot anywhere on the screen, and fades back in. */
   var lastSpot = null;
+  /* Where an element sits on the stage, in the page's own 1920×1080 units
+     (offsets, so the TV's zoom doesn't get in the way). */
+  function boxOf(node) {
+    var stage = $('stage'), x = 0, y = 0, n = node;
+    while (n && n !== stage) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+    return {x: x, y: y, w: node.offsetWidth, h: node.offsetHeight};
+  }
+  function overlaps(a, b, gap) {
+    return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+  }
   function drift() {
     var left = document.querySelector('.left');
     if (document.body.classList.contains('night')) {
       $('stage').style.transform = '';
-      var w = left.offsetWidth, h = left.offsetHeight;
-      var maxX = Math.max(0, 1920 - 280 - w), maxY = Math.max(0, 1080 - 230 - h);
-      var spot;
-      do { spot = [Math.round(Math.random() * maxX), -Math.round(Math.random() * maxY)]; }
-      while (lastSpot && Math.abs(spot[0] - lastSpot[0]) + Math.abs(spot[1] - lastSpot[1]) < 300 && Math.random() < 0.9);
+      // Measure without the current move, then pick a spot clear of every card on screen.
+      var was = left.style.transform;
+      left.style.transform = '';
+      var base = boxOf(left);
+      left.style.transform = was;
+      var cards = Array.prototype.filter.call(document.querySelectorAll('#right .card'), function (c) {
+        return !c.classList.contains('gone') && c.offsetHeight > 0;
+      }).map(boxOf);
+      var minX = 140 - base.x, maxX = 1920 - 140 - base.w - base.x;
+      var minY = 110 - base.y, maxY = 1080 - 110 - base.h - base.y;
+      var spot = null;
+      for (var i = 0; i < 60 && !spot; i++) {
+        var dx = Math.round(minX + Math.random() * Math.max(0, maxX - minX));
+        var dy = Math.round(minY + Math.random() * Math.max(0, maxY - minY));
+        var box = {x: base.x + dx, y: base.y + dy, w: base.w, h: base.h};
+        if (cards.some(function (c) { return overlaps(box, c, 48); })) continue;
+        if (lastSpot && Math.abs(dx - lastSpot[0]) + Math.abs(dy - lastSpot[1]) < 300 && i < 40) continue;
+        spot = [dx, dy];
+      }
+      if (!spot) spot = [0, 0];   // nowhere clear: its own corner, which the cards never cover
       lastSpot = spot;
       left.style.transition = 'opacity 2s ease';
       left.style.opacity = '0';
@@ -548,7 +573,20 @@
     b.fill._scale = scale;
   }
 
-  function render() { renderStatus(); renderNextUp(); renderFeed(); }
+  function render() {
+    renderStatus(); renderNextUp(); renderFeed();
+    // A card that appears later mustn't land on the night clock: move it if it does.
+    setTimeout(function () {
+      if (!document.body.classList.contains('night')) return;
+      var left = document.querySelector('.left'), box = boxOf(left);
+      var m = /translate\((-?\d+)px,\s*(-?\d+)px\)/.exec(left.style.transform || '');
+      if (m) { box.x += Number(m[1]); box.y += Number(m[2]); }
+      var clash = Array.prototype.some.call(document.querySelectorAll('#right .card'), function (c) {
+        return !c.classList.contains('gone') && c.offsetHeight > 0 && overlaps(box, boxOf(c), 48);
+      });
+      if (clash) drift();
+    }, 1200);
+  }
 
   /* ================= photos ================= */
   var photos = [], index = -1, front = $('photoA'), back = $('photoB');
@@ -588,13 +626,14 @@
 
   /* ================= start ================= */
   tick(); setInterval(tick, 1000);
-  drift(); setInterval(drift, 120000);
+  // One beat for everything that moves: a new photo, and the stage (or the
+  // night clock) shifting with it, so the screen changes once, not twice.
+  drift(); setInterval(function () { nextPhoto(); drift(); }, PHOTO_SECONDS * 1000);
   document.addEventListener('visibilitychange', drift);
   readMusic(); setInterval(function () { readMusic(); renderFeed(); }, 2000);
   loadFeed(); setInterval(loadFeed, 90000);
   setInterval(function () { var c = $('nextup'); var n = feed && feed.nextUp; if (n && n.trip) updateLeave(c, n, n.trip); }, 15000);
   loadPhotos(); setInterval(loadPhotos, 3600000);
-  setInterval(nextPhoto, PHOTO_SECONDS * 1000);
 })();
 </script>
 </body>
