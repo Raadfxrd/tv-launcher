@@ -21,30 +21,29 @@
     /* Glass, as in home-dashboard: a faint fill over whatever is behind,
        blurred and saturated, a hairline edge, and light catching the top.
        A touch darker than the dashboard's, because this sits on colour. */
-    --glass-fill: rgba(22, 20, 36, 0.14);
+    --glass-fill: rgba(18, 18, 18, 0.14);
     --glass-edge: rgba(255, 255, 255, 0.16);
     --glass-blur: blur(14px) saturate(160%);
     /* Shadows the way light falls from above: a tight contact shadow plus a
        wide soft one that sits lower and fades out, never one dark blob. */
-    --lift-1: 0 1px 2px rgba(10, 6, 30, 0.16), 0 6px 16px -6px rgba(10, 6, 30, 0.22);
-    --lift-2: 0 2px 4px rgba(10, 6, 30, 0.18), 0 22px 44px -14px rgba(10, 6, 30, 0.5);
+    --lift-1: 0 1px 2px rgba(0,0,0, 0.16), 0 6px 16px -6px rgba(0,0,0, 0.22);
+    --lift-2: 0 2px 4px rgba(0,0,0, 0.18), 0 22px 44px -14px rgba(0,0,0, 0.5);
     --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped: arrives and settles, never overshoots */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #111112; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
   .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
   /* ---------- the stage ----------
      The whole screen is whatever the focused tile is about: what's popular on
      that service right now, the album of what's playing on Tidal, or one of
-     your photos. Two layers crossfade with a slow drift; a shade on the left
+     nothing at all. Two layers crossfade; a shade on the left
      and along the bottom keeps the text and glass readable on any picture. */
   .bg { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
-        background:
-          radial-gradient(60% 65% at 12% 6%, #3A3A3C 0%, rgba(58,58,60,0) 72%),
-          radial-gradient(50% 55% at 92% 14%, #2B2B2D 0%, rgba(43,43,45,0) 70%),
-          radial-gradient(60% 60% at 90% 92%, #232325 0%, rgba(35,35,37,0) 72%),
-          #111112; }
+        background: #000; }
+  /* Black and white when the focused tile has nothing of its own to show. */
+  body.plain { --accent: #FFFFFF; }
+  body.plain .glass { background: rgba(255, 255, 255, 0.06); }
   .stage { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; overflow: hidden; }
   .stage .pic { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; object-position: 50% 22%;
                 opacity: 0; transition: opacity 0.9s ease; will-change: opacity; }
@@ -54,15 +53,15 @@
 
   .shade { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; pointer-events: none;
            background:
-             radial-gradient(60% 50% at 12% 22%, rgba(10,8,24,0.5) 0%, rgba(10,8,24,0) 100%),
-             linear-gradient(90deg, rgba(10,8,24,0.55) 0%, rgba(10,8,24,0.18) 40%, rgba(10,8,24,0) 62%),
-             linear-gradient(0deg, rgba(10,8,24,0.42) 0%, rgba(10,8,24,0.16) 22%, rgba(10,8,24,0) 42%),
-             linear-gradient(180deg, rgba(10,8,24,0.28) 0%, rgba(10,8,24,0) 20%); }
+             radial-gradient(60% 50% at 12% 22%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%),
+             linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 40%, rgba(0,0,0,0) 62%),
+             linear-gradient(0deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.16) 22%, rgba(0,0,0,0) 42%),
+             linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 20%); }
 
   .glass { background: var(--glass-fill);
            box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255,255,255,0.10), var(--lift-1);
            -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
-  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 18, 32, 0.6); }
+  .lite .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(18, 18, 18, 0.6); }
 
   .page { position: relative; z-index: 1; width: 1920px; height: 1080px; }
 
@@ -87,7 +86,7 @@
   /* Settings: a gear at the end of the date line, one press down from the apps. */
   .gear { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 24px; margin-left: 8px; color: var(--text); flex-shrink: 0;
           transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
-  .row.active .gear.focused { background: #fff; color: #1a1630; transform: scale(1.12); box-shadow: var(--lift-2); }
+  .row.active .gear.focused { background: #fff; color: #111; transform: scale(1.12); box-shadow: var(--lift-2); }
   .row.active .gear.focused.pressed { transform: scale(1.0); }
 
   .now { display: flex; gap: 24px; align-items: flex-end; justify-content: flex-end; min-width: 0; }
@@ -179,7 +178,7 @@
   })();
 </script>
 </head>
-<body>
+<body class="plain">
 <div class="bg" aria-hidden="true"></div>
 <div class="stage" aria-hidden="true"><img class="pic" id="picA" alt=""><img class="pic" id="picB" alt=""></div>
 <div class="shade" aria-hidden="true"></div>
@@ -210,7 +209,7 @@
      The only row, in this order. Apps are found by package first, then by
      the name the TV shows; ones that aren't installed are simply left out.
      `shelf` is whose popular titles fill the screen while you're on it;
-     `music` shows what's playing instead. Everything else shows your photos. */
+     `music` shows what's playing instead. Everything else: plain black and white. */
   var PINNED = [
     {hdmi: 3, label: 'Apple TV', shelf: 'apple', shelfName: 'Apple TV+'},     // the Apple TV, on HDMI 3
     {label: 'Jellyfin', pkgs: ['org.jellyfin.androidtv'], names: ['jellyfin']},
@@ -417,7 +416,7 @@
   /* ================= the stage =================
      The whole background follows the focused tile, once the remote rests on
      it: a streaming app shows what's popular there (TMDB, via /api/trending),
-     Tidal shows the album that's playing, and everything else your photos.
+     Tidal shows the album that's playing; anything else stays black and white.
      Each source cycles slowly; a picture only swaps in once it has loaded. */
   var trending = {};
   function loadTrending() {
@@ -429,20 +428,6 @@
         console.log('[stage] trending', d ? Object.keys(d.services || {}).length + ' services' : 'no answer');
       })
       .catch(function (e) { console.warn('[stage] trending failed', e); });
-  }
-
-  var photos = [], photoIndex = 0;
-  function loadPhotos() {
-    if (!API) return;
-    fetch(API + '/api/photos?token=' + encodeURIComponent(TOKEN))
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d || !d.photos || !d.photos.length) return;
-        photos = d.photos.slice().sort(function () { return Math.random() - 0.5; });
-        console.log('[stage] photos', photos.length);
-        stageForFocus();
-      })
-      .catch(function (e) { console.warn('[stage] photos failed', e); });
   }
 
   function playing() {
@@ -466,13 +451,7 @@
         return {src: music.art, soft: true, label: 'Now playing', title: music.title, meta: music.artist || ''};
       }};
     }
-    if (photos.length) {
-      return {key: 'photos', next: function () {
-        var ph = photos[photoIndex++ % photos.length];
-        return {src: ph.url, label: '', title: '', meta: ''};
-      }};
-    }
-    return null;
+    return null;   // nothing of its own to show: plain black and white
   }
 
   var stageKey = null, stageStep = 0, stageTimer = null, stageCycle = null;
@@ -500,6 +479,7 @@
     if (!pic) {
       about.classList.add('swap');
       picFront.classList.remove('on');
+      document.body.classList.add('plain');
       return;
     }
     var key = stageKey;
@@ -519,6 +499,7 @@
       picBack.getBoundingClientRect();
       picBack.classList.add('on');
       picFront.classList.remove('on');
+      document.body.classList.remove('plain');
       var t = picFront; picFront = picBack; picBack = t;
     };
     var shown = false;
@@ -628,7 +609,6 @@
   loadApps(); setInterval(loadApps, 10000);   // picks up installs and removals
   loadFeed(); setInterval(loadFeed, 90000);
   loadTrending(); setInterval(loadTrending, 3 * 3600 * 1000);
-  loadPhotos(); setInterval(loadPhotos, 3600 * 1000);
   setInterval(renderNow, 3000);
 })();
 </script>
