@@ -33,6 +33,8 @@ class LauncherActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         bridge = LauncherBridge(this)
+        // Lets Chrome on a computer connected over adb inspect the page (chrome://inspect).
+        WebView.setWebContentsDebuggingEnabled(true)
         web = WebView(this).apply {
             setBackgroundColor(Color.BLACK)
             settings.javaScriptEnabled = true

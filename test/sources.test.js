@@ -192,3 +192,20 @@ test('travel: NS gets Dutch time with its offset, no milliseconds', () => {
 	assert.equal(nsDateTime(new Date('2026-10-20T06:25:00.000Z')), '2026-10-20T08:25:00+02:00');   // summer time
 	assert.equal(nsDateTime(new Date('2026-12-01T07:00:30.500Z')), '2026-12-01T08:00:30+01:00');   // winter time
 });
+
+test('travel: of the trips that arrive in time, the one you can leave last wins', () => {
+	const {bestTrip} = require('../lib/travel');
+	const by = new Date('2026-10-21T07:00:00Z');
+	const early = {source: 'ns', leaveAt: '2026-10-21T05:26:00Z', arriveAt: '2026-10-21T06:27:00Z', durationMinutes: 61};
+	const late = {source: 'ns', leaveAt: '2026-10-21T05:53:00Z', arriveAt: '2026-10-21T06:57:00Z', durationMinutes: 64};
+	const tooLate = {source: 'google', leaveAt: '2026-10-21T06:10:00Z', arriveAt: '2026-10-21T07:12:00Z', durationMinutes: 62};
+	assert.equal(bestTrip([early, late, tooLate], by), late);
+	assert.equal(bestTrip([tooLate], by), tooLate);   // nothing in time: the earliest arrival
+});
+
+test('travel: walking minutes from the distance, with a detour for real streets', () => {
+	const {walkMinutes} = require('../lib/travel');
+	// ~800 m as the crow flies -> about 13 minutes on foot
+	const m = walkMinutes({lat: 52.3120, lng: 4.9470}, {lat: 52.3120, lng: 4.9587});
+	assert.ok(m >= 11 && m <= 15, String(m));
+});

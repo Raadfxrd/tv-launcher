@@ -31,7 +31,7 @@
     --settle: cubic-bezier(0.22, 1, 0.36, 1);   /* critically damped: arrives and settles, never overshoots */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #6C6589; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #111112; color: var(--text); font-family: 'Iosevka Aile', system-ui, sans-serif; cursor: none; -webkit-font-smoothing: antialiased; }
   .mono { font-family: 'Iosevka', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
   /* ---------- the stage ----------
@@ -41,11 +41,10 @@
      and along the bottom keeps the text and glass readable on any picture. */
   .bg { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0;
         background:
-          radial-gradient(55% 60% at 10% 4%, #C66C8D 0%, rgba(198,108,141,0) 72%),
-          radial-gradient(50% 55% at 92% 12%, #C98A52 0%, rgba(201,138,82,0) 70%),
-          radial-gradient(55% 60% at 2% 70%, #4E7DB8 0%, rgba(78,125,184,0) 72%),
-          radial-gradient(60% 60% at 92% 88%, #7E5B9F 0%, rgba(126,91,159,0) 72%),
-          #6C6589; }
+          radial-gradient(60% 65% at 12% 6%, #3A3A3C 0%, rgba(58,58,60,0) 72%),
+          radial-gradient(50% 55% at 92% 14%, #2B2B2D 0%, rgba(43,43,45,0) 70%),
+          radial-gradient(60% 60% at 90% 92%, #232325 0%, rgba(35,35,37,0) 72%),
+          #111112; }
   .stage { position: fixed; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 0; overflow: hidden; }
   .stage .pic { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; object-fit: cover; object-position: 50% 22%;
                 opacity: 0; transition: opacity 0.9s ease; will-change: opacity; }
@@ -425,8 +424,11 @@
     if (!API) return;
     fetch(API + '/api/trending?token=' + encodeURIComponent(TOKEN))
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && d.services) { trending = d.services; stageForFocus(); } })
-      .catch(function () {});
+      .then(function (d) {
+        if (d && d.services) { trending = d.services; stageForFocus(); }
+        console.log('[stage] trending', d ? Object.keys(d.services || {}).length + ' services' : 'no answer');
+      })
+      .catch(function (e) { console.warn('[stage] trending failed', e); });
   }
 
   var photos = [], photoIndex = 0;
@@ -437,9 +439,10 @@
       .then(function (d) {
         if (!d || !d.photos || !d.photos.length) return;
         photos = d.photos.slice().sort(function () { return Math.random() - 0.5; });
+        console.log('[stage] photos', photos.length);
         stageForFocus();
       })
-      .catch(function () {});
+      .catch(function (e) { console.warn('[stage] photos failed', e); });
   }
 
   function playing() {
@@ -518,11 +521,16 @@
       picFront.classList.remove('on');
       var t = picFront; picFront = picBack; picBack = t;
     };
+    var shown = false;
+    var show = function () { if (shown) return; shown = true; ready(); };
     img.onload = function () {
-      // Decode off the main thread first, so the crossfade starts smooth.
-      if (img.decode) img.decode().then(ready, ready); else ready();
+      // Decode off the main thread first so the crossfade starts smooth, but
+      // never wait on it for long: some TV WebViews never settle decode().
+      if (img.decode) img.decode().then(show, show);
+      setTimeout(show, 800);
     };
     img.onerror = function () {
+      console.warn('[stage] picture failed', img.src);
       if (pic.fallback && img.src.indexOf(pic.fallback) < 0) { pic.src = pic.fallback; img.src = pic.fallback; }
     };
     img.src = pic.src;

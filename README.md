@@ -124,10 +124,12 @@ adb shell pm disable-user --user 0 com.google.android.tvlauncher
   work-from-home days.
 - Online meetings show the event without travel; `NO_TRAVEL_CARD=hide` skips
   them instead.
-- Addresses are found with Google; the route comes from the NS journey
-  planner (trains, buses, trams, metros, walks) with live delays, platform
-  changes and cancellations; the card turns amber when that happens. Without
-  an NS key, Google's Routes API plans the trip instead, without live delays.
+- Addresses are found with Google. The route: NS from the nearest station to
+  the nearest station (live delays, platforms, cancellations; the card turns
+  amber) and Google's door-to-door transit route (metro, tram, bus) are asked
+  together, and the one that lets you leave last while still arriving by the
+  start wins: in Amsterdam often the metro, to Haarlem the Sprinter.
+- Short names for buildings work too: `HvA|BPH|WBH|KSH=Wibautstraat, Amsterdam`.
 
 ## Parcels
 
@@ -179,6 +181,12 @@ forwarded email again). Later, a Proton Mail Bridge poller can post the same
   not be grantable on the A1. Worth a try; TMDB is the fallback either way.
 - **Lite mode**: if the frosted cards stutter on the A1, add `&lite=1` to the
   page URL to drop the blur.
+
+## Looking inside the TV
+
+With the TV connected over adb, open `chrome://inspect` in Chrome on the
+computer: the launcher's page shows up there, with its console (lines starting
+with `[stage]` say whether trending and photos loaded) and a live view.
 
 ## Tests
 
