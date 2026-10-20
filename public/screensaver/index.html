@@ -339,48 +339,41 @@
   function overlaps(a, b, gap) {
     return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
   }
+  /* Burn-in care, day and night alike: with every beat the clock and cards
+     fade out together; the cards shift a little, the clock goes to a new
+     free spot anywhere on the screen (clear of every card and the photo
+     credit, and well away from where it was), and both fade back in. */
   function drift() {
-    var left = document.querySelector('.left');
-    if (document.body.classList.contains('night')) {
-      $('stage').style.transform = '';
-      $('stage').style.opacity = '';
-      // Measure without the current move, then pick a spot clear of every card on screen.
-      var was = left.style.transform;
+    var stage = $('stage'), left = document.querySelector('.left'), right = $('right');
+    stage.style.transform = '';
+    stage.style.opacity = '0';
+    setTimeout(function () {
+      var rx = Math.round(Math.random() * 120 - 60), ry = Math.round(Math.random() * 80 - 40);
+      right.style.transform = 'translate(' + rx + 'px,' + ry + 'px)';
+
       left.style.transform = '';
       var base = boxOf(left);
-      left.style.transform = was;
-      var cards = Array.prototype.filter.call(document.querySelectorAll('#right .card'), function (c) {
+      var blocked = Array.prototype.filter.call(document.querySelectorAll('#right .card'), function (c) {
         return !c.classList.contains('gone') && c.offsetHeight > 0;
-      }).map(boxOf);
-      var minX = 140 - base.x, maxX = 1920 - 140 - base.w - base.x;
-      var minY = 110 - base.y, maxY = 1080 - 110 - base.h - base.y;
-      var spot = null;
-      for (var i = 0; i < 60 && !spot; i++) {
+      }).map(function (c) { var b = boxOf(c); b.x += rx; b.y += ry; return b; });
+      blocked.push({x: 1920 - 132 - 420, y: 40, w: 420, h: 56});            // the photo credit, top right
+
+      var minX = 120 - base.x, maxX = 1920 - 120 - base.w - base.x;
+      var minY = 90 - base.y, maxY = 1080 - 90 - base.h - base.y;
+      var best = null, bestScore = -1;
+      for (var i = 0; i < 80; i++) {
         var dx = Math.round(minX + Math.random() * Math.max(0, maxX - minX));
         var dy = Math.round(minY + Math.random() * Math.max(0, maxY - minY));
         var box = {x: base.x + dx, y: base.y + dy, w: base.w, h: base.h};
-        if (cards.some(function (c) { return overlaps(box, c, 48); })) continue;
-        if (lastSpot && Math.abs(dx - lastSpot[0]) + Math.abs(dy - lastSpot[1]) < 300 && i < 40) continue;
-        spot = [dx, dy];
+        if (blocked.some(function (c) { return overlaps(box, c, 48); })) continue;
+        // Prefer spots far from the last one, so every move is a real move.
+        var score = lastSpot ? Math.abs(dx - lastSpot[0]) + Math.abs(dy - lastSpot[1]) : 1;
+        if (score > bestScore) { best = [dx, dy]; bestScore = score; }
+        if (score > 500) break;
       }
-      if (!spot) spot = [0, 0];   // nowhere clear: its own corner, which the cards never cover
-      lastSpot = spot;
-      left.style.transition = 'opacity 2s ease';
-      left.style.opacity = '0';
-      setTimeout(function () {
-        left.style.transform = 'translate(' + spot[0] + 'px,' + spot[1] + 'px)';
-        left.style.opacity = '';
-      }, 2100);
-      return;
-    }
-    // By day: the clock and cards fade out, shift, and fade back in, while
-    // the new photo crossfades underneath. Nothing ever slides.
-    var stage = $('stage');
-    var x = Math.round(Math.random() * 120 - 60), y = Math.round(Math.random() * 80 - 40);
-    stage.style.opacity = '0';
-    setTimeout(function () {
-      left.style.transform = '';
-      stage.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      if (!best) best = [0, 0];   // nowhere free: its own corner, which the cards never cover
+      lastSpot = best;
+      left.style.transform = 'translate(' + best[0] + 'px,' + best[1] + 'px)';
       stage.style.opacity = '';
     }, 1500);
   }
@@ -585,12 +578,16 @@
     renderStatus(); renderNextUp(); renderFeed();
     // A card that appears later mustn't land on the night clock: move it if it does.
     setTimeout(function () {
-      if (!document.body.classList.contains('night')) return;
-      var left = document.querySelector('.left'), box = boxOf(left);
-      var m = /translate\((-?\d+)px,\s*(-?\d+)px\)/.exec(left.style.transform || '');
-      if (m) { box.x += Number(m[1]); box.y += Number(m[2]); }
+      var shift = function (node) {
+        var m = /translate\((-?\d+)px,\s*(-?\d+)px\)/.exec(node.style.transform || '');
+        return m ? [Number(m[1]), Number(m[2])] : [0, 0];
+      };
+      var left = document.querySelector('.left'), box = boxOf(left), ls = shift(left), rs = shift($('right'));
+      box.x += ls[0]; box.y += ls[1];
       var clash = Array.prototype.some.call(document.querySelectorAll('#right .card'), function (c) {
-        return !c.classList.contains('gone') && c.offsetHeight > 0 && overlaps(box, boxOf(c), 48);
+        if (c.classList.contains('gone') || !c.offsetHeight) return false;
+        var b = boxOf(c); b.x += rs[0]; b.y += rs[1];
+        return overlaps(box, b, 48);
       });
       if (clash) drift();
     }, 1200);
