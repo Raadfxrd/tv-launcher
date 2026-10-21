@@ -450,6 +450,52 @@
     }
   },
   "paths": {
+    "/api/status": {
+      "get": {
+        "tags": [
+          "Screen"
+        ],
+        "summary": "Is the API up, is this token right?",
+        "x-name": "Status",
+        "description": "Answers without a token too, so you can tell 'can't reach it' from 'wrong token'. token is ok, wrong, missing or not-set; with the right token it also lists which services are set up (yes/no only). Never cached.",
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "up": {
+                      "type": "boolean"
+                    },
+                    "time": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "wrong",
+                        "missing",
+                        "not-set"
+                      ]
+                    },
+                    "services": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/feed": {
       "get": {
         "tags": [

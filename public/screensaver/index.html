@@ -107,6 +107,11 @@
   .credit { position: absolute; top: 48px; right: 132px; padding: 6px 14px; border-radius: 16px; background: rgba(0,0,0,.35); font-size: 18px; letter-spacing: 0.01em; color: rgba(255,255,255,.82); opacity: 0; transition: opacity .8s ease; }
   .credit.in { opacity: 1; }
 
+  /* Only shown when the API isn't answering properly; stays visible at night. */
+  .api { display: none; align-items: center; gap: 12px; font-size: 24px; color: #FFC066; padding: 6px 0 0 8px; }
+  .api.on { display: flex; }
+  .api::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+
   /* ---------- night ----------
      No photos, dim everything, shrink the clock (by transform, so it glides
      rather than reflowing), and let only music stay. Everything eases over
@@ -166,6 +171,7 @@
       <div class="clock" id="clock" aria-label="Time"></div>
       <div class="date" id="date"></div>
       <div class="status" id="status"></div>
+      <div class="api" id="api"></div>
     </section>
     <section class="right" id="right">
       <div class="card nextup gone" id="nextup"><div class="inner"></div></div>
@@ -386,8 +392,20 @@
   /* ================= feed ================= */
   var feed = null;
   function api(path) { return (API || '') + path + '?token=' + encodeURIComponent(TOKEN); }
+  var apiFails = {};
+  function apiFetch(name, url) {
+    var mark = function (status) {
+      if (status >= 200 && status < 300) delete apiFails[name]; else apiFails[name] = status;
+      var codes = Object.keys(apiFails).map(function (k) { return apiFails[k]; });
+      var text = !codes.length ? '' : codes.indexOf(401) >= 0 ? 'API: token not accepted'
+        : codes.indexOf(0) >= 0 ? 'API unreachable' : 'API error ' + codes[0];
+      $('api').textContent = text;
+      $('api').classList.toggle('on', !!text);
+    };
+    return fetch(url).then(function (r) { mark(r.status); return r; }, function (e) { mark(0); throw e; });
+  }
   function loadFeed() {
-    fetch(api('/api/feed')).then(function (r) { return r.ok ? r.json() : null; })
+    apiFetch('feed', api('/api/feed')).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data) return;
         feed = data;
@@ -601,7 +619,7 @@
   /* ================= photos ================= */
   var photos = [], index = -1, front = $('photoA'), back = $('photoB');
   function loadPhotos() {
-    fetch(api('/api/photos')).then(function (r) { return r.ok ? r.json() : null; })
+    apiFetch('photos', api('/api/photos')).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data || !data.photos || !data.photos.length) return;
         photos = shuffle(data.photos);

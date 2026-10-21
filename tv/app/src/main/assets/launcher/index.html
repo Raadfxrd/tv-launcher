@@ -84,6 +84,11 @@
   .status { display: flex; align-items: center; gap: 12px; font-size: 24px; color: var(--muted); padding: 2px 0 0 4px; min-height: 48px; }
 
   /* Settings: a gear at the end of the date line, one press down from the apps. */
+  /* API status: a small dot, green when all's well; amber with a few words when not. */
+  .api { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; color: var(--warn); }
+  .api i { width: 10px; height: 10px; border-radius: 50%; background: #9FE3B8; }
+  .api.bad i { background: var(--warn); }
+  .api span:empty { display: none; }
   .gear { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 24px; margin-left: 8px; color: var(--text); flex-shrink: 0;
           transition: transform 0.3s var(--settle), background 0.2s ease, color 0.2s ease; }
   .row.active .gear.focused { background: #fff; color: #111; transform: scale(1.12); box-shadow: var(--lift-2); }
@@ -233,7 +238,7 @@
     <div class="when">
       <div class="clock" id="clock" aria-label="Time"></div>
       <div class="date" id="date"></div>
-      <div class="row" id="row-dock"><div class="status"><span id="status"></span><span class="gear glass" id="gear" aria-label="Settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div></div>
+      <div class="row" id="row-dock"><div class="status"><span id="status"></span><span class="api" id="api"><i></i><span></span></span><span class="gear glass" id="gear" aria-label="Settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div></div>
     </div>
     <div class="now" id="now" aria-label="Now"></div>
   </div>
@@ -486,7 +491,7 @@
   var trending = {};
   function loadTrending() {
     if (!API) return;
-    fetch(API + '/api/trending?token=' + encodeURIComponent(TOKEN))
+    apiFetch('trending', API + '/api/trending?token=' + encodeURIComponent(TOKEN))
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (d && d.services) { trending = d.services; stageForFocus(); }
@@ -498,7 +503,7 @@
   var photos = [], photoIndex = 0;
   function loadPhotos() {
     if (!API) return;
-    fetch(API + '/api/photos?token=' + encodeURIComponent(TOKEN))
+    apiFetch('photos', API + '/api/photos?token=' + encodeURIComponent(TOKEN))
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.photos || !d.photos.length) { console.warn('[stage] no photos', d && d.error); return; }
@@ -603,11 +608,26 @@
     img.src = pic.src;
   }
 
+  /* ================= API status ================= */
+  var apiFails = {};
+  function apiResult(name, status) {           // status: HTTP code, or 0 when unreachable
+    if (status >= 200 && status < 300) delete apiFails[name]; else apiFails[name] = status;
+    var codes = Object.keys(apiFails).map(function (k) { return apiFails[k]; });
+    var text = !codes.length ? '' : codes.indexOf(401) >= 0 ? 'API: token not accepted'
+      : codes.indexOf(0) >= 0 ? 'API unreachable' : 'API error ' + codes[0];
+    $('api').classList.toggle('bad', !!text);
+    $('api').lastChild.textContent = text;
+  }
+  function apiFetch(name, url, init) {
+    return fetch(url, init).then(function (r) { apiResult(name, r.status); return r; },
+                                  function (e) { apiResult(name, 0); throw e; });
+  }
+
   /* ================= cards: next up, music, parcels ================= */
   var feed = null;
   function loadFeed() {
     if (!API) return;
-    fetch(API + '/api/feed?token=' + encodeURIComponent(TOKEN))
+    apiFetch('feed', API + '/api/feed?token=' + encodeURIComponent(TOKEN))
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) { if (d) { feed = d; renderNow(); renderStatus(); } })
       .catch(function () {});
