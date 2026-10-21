@@ -500,6 +500,21 @@
       .catch(function (e) { console.warn('[stage] trending failed', e); });
   }
 
+  var discovery = [], discoveryName = 'My Daily Discovery';
+  function loadDiscovery() {
+    if (!API) return;
+    apiFetch('discovery', API + '/api/discovery?token=' + encodeURIComponent(TOKEN))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.tracks) return;
+        discovery = d.tracks;
+        if (d.mix && d.mix.name) discoveryName = d.mix.name;
+        console.log('[stage] discovery', discovery.length, d.error || '');
+        stageForFocus();
+      })
+      .catch(function (e) { console.warn('[stage] discovery failed', e); });
+  }
+
   var photos = [], photoIndex = 0;
   function loadPhotos() {
     if (!API) return;
@@ -533,6 +548,13 @@
     if (music && music.title && music.art) {
       return {key: 'music:' + music.title, still: true, next: function () {
         return {src: music.art, soft: true, label: 'Now playing', title: music.title, meta: music.artist || ''};
+      }};
+    }
+    // Tidal with nothing playing: your My Daily Discovery, cover by cover.
+    if (it && it.music && discovery.length) {
+      return {key: 'discovery', next: function (i) {
+        var t = discovery[i % discovery.length];
+        return {src: t.cover, soft: true, label: discoveryName, title: t.title, meta: t.artist || ''};
       }};
     }
     // Nothing of its own to show: your photos, the same ones as the screensaver.
@@ -842,6 +864,7 @@
   loadFeed(); setInterval(loadFeed, 90000);
   loadTrending(); setInterval(loadTrending, 3 * 3600 * 1000);
   loadPhotos(); setInterval(loadPhotos, 3600 * 1000);
+  loadDiscovery(); setInterval(loadDiscovery, 3 * 3600 * 1000);
   setInterval(renderNow, 3000);
 })();
 </script>

@@ -111,6 +111,17 @@ adb shell pm disable-user --user 0 com.google.android.tvlauncher
 # undo: adb shell pm enable com.google.android.tvlauncher
 ```
 
+## TIDAL: your Daily Discovery
+
+With nothing playing, the Tidal tile shows your **My Daily Discovery**, track
+by track with the album covers. Set up once:
+
+1. Create an app on [developer.tidal.com](https://developer.tidal.com), with
+   redirect URI `https://<domain>/api/tidal/callback`.
+2. Put its `TIDAL_CLIENT_ID` and `TIDAL_CLIENT_SECRET` in Vercel and redeploy.
+3. Open `https://<domain>/api/tidal/login?token=FEED_TOKEN` and log in with
+   TIDAL. The refresh token goes to Upstash; from then on it keeps itself fresh.
+
 ## Routes to your phone
 
 Down from the apps to the dock, right onto the Next up card, OK: the

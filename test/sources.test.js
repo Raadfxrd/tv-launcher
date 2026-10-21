@@ -221,3 +221,26 @@ test('travel: options around the best departure, earliest first, twins merged', 
 	assert.equal(out.filter((x) => x.best).length, 1);
 	assert.equal(out[2].best, true);
 });
+
+test('tidal: tracks with their artists and album cover from one JSON:API document', () => {
+	const {tracksFrom} = require('../lib/tidal');
+	const doc = {
+		data: [{id: 't1', type: 'tracks'}, {id: 't2', type: 'tracks'}],
+		included: [
+			{id: 't1', type: 'tracks', attributes: {title: 'Night Drive', version: 'Edit'}, relationships: {artists: {data: [{id: 'a1', type: 'artists'}]}, albums: {data: [{id: 'al1', type: 'albums'}]}}},
+			{id: 't2', type: 'tracks', attributes: {title: 'No Cover'}, relationships: {artists: {data: []}, albums: {data: []}}},
+			{id: 'a1', type: 'artists', attributes: {name: 'Someone'}},
+			{id: 'al1', type: 'albums', attributes: {title: 'Album'}, relationships: {coverArt: {data: [{id: 'c1', type: 'artworks'}]}}},
+			{id: 'c1', type: 'artworks', attributes: {files: [
+				{href: 'https://x/80.jpg', meta: {width: 80, height: 80}},
+				{href: 'https://x/1280.jpg', meta: {width: 1280, height: 1280}},
+				{href: 'https://x/3000.jpg', meta: {width: 3000, height: 3000}},
+			]}},
+		],
+	};
+	const out = tracksFrom(doc);
+	assert.equal(out[0].title, 'Night Drive (Edit)');
+	assert.equal(out[0].artist, 'Someone');
+	assert.equal(out[0].cover, 'https://x/1280.jpg');
+	assert.equal(out[1].cover, null);
+});

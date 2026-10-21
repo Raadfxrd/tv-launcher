@@ -819,6 +819,91 @@
         },
         "x-name": "Inbound"
       }
+    },
+    "/api/discovery": {
+      "get": {
+        "tags": [
+          "Screen"
+        ],
+        "summary": "Your TIDAL Daily Discovery",
+        "x-name": "Discovery",
+        "x-cache": 10800,
+        "description": "The tracks of your My Daily Discovery mix with album covers, for the Tidal tile when nothing is playing. Needs TIDAL_CLIENT_ID/SECRET and a one-time login at /api/tidal/login?token=FEED_TOKEN. connected is false until then.",
+        "security": [
+          {
+            "feedToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The mix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "connected": {
+                      "type": "boolean"
+                    },
+                    "mix": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "tracks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "artist": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "album": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "cover": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          }
+        }
+      }
     }
   }
 }
